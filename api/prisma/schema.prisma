@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Rol {
+  ADMIN
+  MAESTRO_PANADERO
+  CAJERO
+  REPARTIDOR
+  CLIENTE
+}
+
+enum EstatusPedido {
+  PENDIENTE
+  ESPERANDO_CONFIRMACION
+  EN_PREPARACION
+  LISTO
+  EN_CAMINO
+  ENTREGADO
+  SOLICITUD_CANCELACION
+  CANCELADO
+}
+
+enum TipoEntrega {
+  MOSTRADOR
+  DOMICILIO
+}
+
+enum FormaPago {
+  EFECTIVO
+  TARJETA
+}
+
+// ─── Modelos ─────────────────────────────────────────────────────────────────
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  telefono      String?
+  rol           Rol      @default(CLIENTE)
+  puntosSaldo   Int      @default(0) @map("puntos_saldo")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  pedidos                 Pedido[]                  @relation("UsuarioPedidos")
+  pedidosRepartidos       Pedido[]                  @relation("RepartidorPedidos")
+  historialAcciones       HistorialEstatusPedido[]
+
+  @@map("usuario")
+}
+
+model Producto {
+  id               Int       @id @default(autoincrement())
+  sku              String    @unique
+  nombre           String
+  descripcion      String?   @db.Text
+  precio           Decimal   @db.Decimal(10, 2)
+  categoria        String
+  imagenUrl        String?   @map("imagen_url")
+  activo           Boolean   @default(true)
+  stockDisponible  Int       @default(0) @map("stock_disponible")
+  requiereEncargo  Boolean   @default(false) @map("requiere_encargo")
+  temporadaInicio  DateTime? @map("temporada_inicio")
+  temporadaFin     DateTime? @map("temporada_fin")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  itemsPedido ItemPedido[]
+
+  @@map("producto")
+}
+
+model Pedido {
+  id                    Int           @id @default(autoincrement())
+  usuarioId             Int?          @map("usuario_id")
+  guestToken            String?       @map("guest_token") @db.VarChar(36)
+  nombreCliente         String        @map("nombre_cliente")
+  email                 String
+  telefono              String
+  tipoEntrega           TipoEntrega   @map("tipo_entrega")
+  direccion             String?       @db.Text
+  formaPago             FormaPago     @map("forma_pago")
+  estatus               EstatusPedido @default(PENDIENTE)
+  subtotal              Decimal       @db.Decimal(10, 2)
+  costoEnvio            Decimal       @default(0) @map("costo_envio") @db.Decimal(10, 2)
+  descuentoPuntos       Decimal       @default(0) @map("descuento_puntos") @db.Decimal(10, 2)
+  montoDeposito         Decimal       @default(0) @map("monto_deposito") @db.Decimal(10, 2)
+  porcentajeDeposito    Decimal       @default(0) @map("porcentaje_deposito") @db.Decimal(5, 2)
+  total                 Decimal       @db.Decimal(10, 2)
+  fechaEntregaEstimada  DateTime?     @map("fecha_entrega_estimada")
+  repartidorId          Int?          @map("repartidor_id")
+  tiempoEstimadoMinutos Int?          @map("tiempo_estimado_minutos")
+  cancelacionMotivo     String?       @map("cancelacion_motivo") @db.Text
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  usuario    Usuario? @relation("UsuarioPedidos", fields: [usuarioId], references: [id])
+  repartidor Usuario? @relation("RepartidorPedidos", fields: [repartidorId], references: [id])
+
+  items     ItemPedido[]
+  historial HistorialEstatusPedido[]
+  factura   FacturaCFDI?
+
+  @@index([guestToken])
+  @@index([usuarioId])
+  @@map("pedido")
+}
+
+model ItemPedido {
+  id                   Int     @id @default(autoincrement())
+  pedidoId             Int     @map("pedido_id")
+  productoId           Int     @map("producto_id")
+  cantidad             Int
+  precioUnitario       Decimal @map("precio_unitario") @db.Decimal(10, 2)
+  esEncargo            Boolean @map("es_encargo")
+  mensajePersonalizado String? @map("mensaje_personalizado") @db.Text
+
+  pedido   Pedido   @relation(fields: [pedidoId], references: [id])
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@map("item_pedido")
+}
+
+model HistorialEstatusPedido {
+  id        Int           @id @default(autoincrement())
+  pedidoId  Int           @map("pedido_id")
+  estatus   EstatusPedido
+  timestamp DateTime      @default(now())
+  actorId   Int?          @map("actor_id")
+  nota      String?       @db.Text
+
+  pedido Pedido   @relation(fields: [pedidoId], references: [id])
+  actor  Usuario? @relation(fields: [actorId], references: [id])
+
+  @@map("historial_estatus_pedido")
+}
+
+model FacturaCFDI {
+  id          Int    @id @default(autoincrement())
+  pedidoId    Int    @unique @map("pedido_id")
+  rfc         String @db.VarChar(13)
+  razonSocial String @map("razon_social")
+  usoCFDI     String @map("uso_cfdi") @db.VarChar(10)
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id])
+
+  @@map("factura_cfdi")
+}
+
+model Cupon {
+  id               Int      @id @default(autoincrement())
+  codigo           String   @unique @db.VarChar(20)
+  usuarioId        Int?     @map("usuario_id")
+  montoOriginal    Decimal  @map("monto_original") @db.Decimal(10, 2)
+  saldoDisponible  Decimal  @map("saldo_disponible") @db.Decimal(10, 2)
+  fechaExpiracion  DateTime @map("fecha_expiracion")
+  usado            Boolean  @default(false)
+
+  @@map("cupon")
+}
