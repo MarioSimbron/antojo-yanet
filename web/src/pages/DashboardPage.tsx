@@ -10,8 +10,10 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import HistoryIcon from '@mui/icons-material/History';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import PeopleIcon from '@mui/icons-material/People';
 import { useAuthStore } from '../store/auth.store';
 import EstatusChip, { etiquetaEstatus } from '../components/EstatusChip';
+import EmpleadosPage from './EmpleadosPage';
 
 /**
  * GraphQL query for the staff order listing (used for active orders).
@@ -314,7 +316,9 @@ function Reportes() {
  * @returns {string} Formatted date string.
  */
 function fmtFecha(iso: string): string {
-  return new Date(iso).toLocaleString('es-MX', {
+  const ms = Number(iso);
+  const d = Number.isFinite(ms) && ms > 0 ? new Date(ms) : new Date(iso);
+  return d.toLocaleString('es-MX', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
@@ -341,9 +345,8 @@ function Historial() {
 
   const entregados: PedidoRow[] = data?.entregados ?? [];
   const cancelados: PedidoRow[] = data?.cancelados ?? [];
-  const todos = [...entregados, ...cancelados].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  const toMs = (s: string) => { const n = Number(s); return Number.isFinite(n) && n > 0 ? n : new Date(s).getTime(); };
+  const todos = [...entregados, ...cancelados].sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
 
   return (
     <Box>
@@ -427,6 +430,7 @@ export default function DashboardPage() {
       roles: ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'],
     },
     { to: '/dashboard/reportes', label: 'Reportes', icon: <BarChartIcon />, roles: ['ADMIN'] },
+    { to: '/dashboard/empleados', label: 'Empleados', icon: <PeopleIcon />, roles: ['ADMIN'] },
   ].filter((item) => item.roles.includes(usuario?.rol ?? ''));
 
   return (
@@ -455,6 +459,7 @@ export default function DashboardPage() {
           <Route index element={<PedidosActivos />} />
           <Route path="historial" element={<Historial />} />
           <Route path="reportes" element={<Reportes />} />
+          <Route path="empleados" element={<EmpleadosPage />} />
         </Routes>
       </Box>
     </Stack>

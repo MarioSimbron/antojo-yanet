@@ -18,6 +18,7 @@ import { pedidoTypeDefs } from './graphql/typeDefs/pedido.js';
 import { asistenteTypeDefs } from './graphql/typeDefs/asistente.js';
 
 import { authResolvers } from './graphql/resolvers/auth.resolvers.js';
+import { usuarioResolvers } from './graphql/resolvers/usuario.resolvers.js';
 import { productoResolvers } from './graphql/resolvers/producto.resolvers.js';
 import { pedidoResolvers } from './graphql/resolvers/pedido.resolvers.js';
 import { asistenteResolvers } from './graphql/resolvers/asistente.resolvers.js';
@@ -55,6 +56,7 @@ const typeDefs = mergeTypeDefs([
  */
 const resolvers = mergeResolvers([
   authResolvers,
+  usuarioResolvers,
   productoResolvers,
   pedidoResolvers,
   asistenteResolvers,
