@@ -102,7 +102,11 @@ const TERMINALES = new Set(['ENTREGADO', 'CANCELADO']);
  */
 function PedidosActivos() {
   const { usuario } = useAuthStore();
-  const { data, loading, refetch } = useQuery(PEDIDOS_QUERY);
+  // cache-and-network: show cached data immediately but always re-fetch so new orders
+  // placed after the last visit appear without a manual page refresh.
+  const { data, loading, refetch } = useQuery(PEDIDOS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
   const [actualizarEstatus] = useMutation(ACTUALIZAR_ESTATUS, { onCompleted: () => refetch() });
   const [resolverCancelacion] = useMutation(RESOLVER_CANCELACION, { onCompleted: () => refetch() });
 
@@ -297,7 +301,9 @@ function fmtFecha(iso: string): string {
  * @returns {JSX.Element} The completed-orders history.
  */
 function Historial() {
-  const { data, loading } = useQuery(HISTORIAL_ENTREGADO_QUERY);
+  const { data, loading } = useQuery(HISTORIAL_ENTREGADO_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
   if (loading) return <CircularProgress />;
 
   type PedidoRow = {
