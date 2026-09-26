@@ -59,8 +59,26 @@ const REPORTE_QUERY = gql`
 `;
 
 /**
- * Staff view of orders: shows each order with its status, lets staff approve/reject
- * cancellation requests and offers status-change buttons allowed for the current role.
+ * Valid status transitions from each non-terminal state — mirrors the backend state machine
+ * so invalid calls are never sent.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const TRANSICIONES_DESDE: Record<string, string[]> = {
+  PENDIENTE: ['EN_PREPARACION', 'CANCELADO'],
+  ESPERANDO_CONFIRMACION: ['EN_PREPARACION', 'CANCELADO'],
+  EN_PREPARACION: ['LISTO'],
+  LISTO: ['EN_CAMINO', 'ENTREGADO'],
+  EN_CAMINO: ['ENTREGADO'],
+  SOLICITUD_CANCELACION: ['EN_PREPARACION', 'LISTO', 'EN_CAMINO', 'CANCELADO'],
+};
+
+/** Statuses that have no further transitions. */
+const TERMINALES = new Set(['ENTREGADO', 'CANCELADO']);
+
+/**
+ * Staff view of orders: shows only active (non-terminal) orders with their status, lets
+ * staff approve/reject cancellation requests and offers only the transition buttons that
+ * are valid from the order's current state AND allowed for the acting role.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The active orders list.
  */
@@ -72,16 +90,35 @@ function PedidosActivos() {
 
   if (loading) return <CircularProgress />;
 
-  const pedidos: Record<string, unknown>[] = data?.pedidos ?? [];
+  // Only show orders that can still change (hide ENTREGADO / CANCELADO)
+  const pedidos: Record<string, unknown>[] = (data?.pedidos ?? []).filter(
+    (p: Record<string, unknown>) => !TERMINALES.has(p.estatus as string),
+  );
 
   const transicionesPorRol: Record<string, string[]> = {
-    CAJERO: ['EN_PREPARACION', 'EN_CAMINO', 'ENTREGADO'],
+    CAJERO: ['EN_PREPARACION', 'EN_CAMINO', 'ENTREGADO', 'CANCELADO'],
     MAESTRO_PANADERO: ['EN_PREPARACION', 'LISTO'],
     REPARTIDOR: ['EN_CAMINO', 'ENTREGADO'],
     ADMIN: ['EN_PREPARACION', 'LISTO', 'EN_CAMINO', 'ENTREGADO', 'CANCELADO'],
   };
 
-  const transicionesPermitidas = transicionesPorRol[usuario?.rol ?? ''] ?? [];
+  /**
+   * Returns the transition buttons the current user may click for a given order.
+   * Intersects role permissions with the state machine to avoid invalid calls.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   * @param {Record<string, unknown>} pedido - The order row from the query.
+   * @returns {string[]} Allowed target statuses.
+   */
+  function transicionesParaPedido(pedido: Record<string, unknown>): string[] {
+    const rolPermitidas = transicionesPorRol[usuario?.rol ?? ''] ?? [];
+    const maquinaPermitidas = TRANSICIONES_DESDE[pedido.estatus as string] ?? [];
+    return rolPermitidas.filter((est) => {
+      if (!maquinaPermitidas.includes(est)) return false;
+      // EN_CAMINO is only valid for home-delivery orders
+      if (est === 'EN_CAMINO' && pedido.tipoEntrega !== 'DOMICILIO') return false;
+      return true;
+    });
+  }
 
   return (
     <Box>
@@ -135,7 +172,7 @@ function PedidosActivos() {
                 </Alert>
               )}
               <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
-                {transicionesPermitidas.map((est) => (
+                {transicionesParaPedido(p).map((est) => (
                   <Button
                     key={est}
                     variant="outlined"

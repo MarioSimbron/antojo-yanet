@@ -117,8 +117,15 @@ function limpiarMarkdown(texto: string): string {
 }
 
 /**
+ * Roles considered staff (non-customer) that unlock extra admin tools.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const ROLES_STAFF = new Set(['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR']);
+
+/**
  * Function-calling tool definitions exposed to the Groq model: consultar_pedido,
- * consultar_stock, agregar_al_carrito, iniciar_encargo and buscar_en_menu.
+ * consultar_stock, agregar_al_carrito, iniciar_encargo, buscar_en_menu plus
+ * listar_pedidos_activos and cambiar_estatus_pedido for staff sessions.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 const tools: GroqTool[] = [
@@ -209,6 +216,49 @@ const tools: GroqTool[] = [
           query: { type: 'string', description: 'Término de búsqueda' },
         },
         required: ['query'],
+      },
+    },
+  },
+];
+
+/**
+ * Extra tools available only to staff sessions (ADMIN, CAJERO, MAESTRO_PANADERO, REPARTIDOR).
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const toolsStaff: GroqTool[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'listar_pedidos_activos',
+      description: 'Lista todos los pedidos activos (no entregados ni cancelados). Úsala cuando el staff pregunte qué pedidos hay, cuántos hay pendientes o quiera un resumen del estado actual.',
+      parameters: {
+        type: 'object',
+        properties: {
+          estatus: {
+            type: 'string',
+            description: 'Filtra por un estatus específico: PENDIENTE, EN_PREPARACION, LISTO, EN_CAMINO, SOLICITUD_CANCELACION. Omite para ver todos los activos.',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cambiar_estatus_pedido',
+      description: 'Cambia el estatus de un pedido. Solo disponible para staff. Transiciones válidas: PENDIENTE→EN_PREPARACION|CANCELADO, EN_PREPARACION→LISTO, LISTO→EN_CAMINO|ENTREGADO, EN_CAMINO→ENTREGADO.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pedidoId: { type: 'number', description: 'ID del pedido' },
+          nuevoEstatus: {
+            type: 'string',
+            enum: ['EN_PREPARACION', 'LISTO', 'EN_CAMINO', 'ENTREGADO', 'CANCELADO'],
+            description: 'Nuevo estatus a asignar',
+          },
+          nota: { type: 'string', description: 'Nota opcional para el historial' },
+        },
+        required: ['pedidoId', 'nuevoEstatus'],
       },
     },
   },
@@ -351,6 +401,44 @@ async function ejecutarTool(
       };
     }
 
+    case 'listar_pedidos_activos': {
+      const terminales = ['ENTREGADO', 'CANCELADO'];
+      const where: Record<string, unknown> = {
+        estatus: { notIn: terminales },
+      };
+      if (args.estatus) where.estatus = String(args.estatus);
+      const pedidos = await prisma.pedido.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { id: true, nombreCliente: true, estatus: true, tipoEntrega: true, total: true, createdAt: true },
+      });
+      if (pedidos.length === 0) return { resultado: 'No hay pedidos activos en este momento.', accion: 'NINGUNA' };
+      const lineas = pedidos.map(
+        (p) => `#${p.id} - ${p.nombreCliente} - ${p.estatus} - ${p.tipoEntrega} - $${p.total} MXN`,
+      );
+      return { resultado: `Pedidos activos (${pedidos.length}):\n${lineas.join('\n')}`, accion: 'NINGUNA' };
+    }
+
+    case 'cambiar_estatus_pedido': {
+      const pedidoId = Number(args.pedidoId);
+      const nuevoEstatus = String(args.nuevoEstatus);
+      const nota = args.nota ? String(args.nota) : undefined;
+      if (!auth) return { resultado: 'No tienes permisos para cambiar el estatus de pedidos.', accion: 'NINGUNA' };
+      try {
+        const { actualizarEstatus } = await import('./pedido.service.js');
+        const actualizado = await actualizarEstatus(pedidoId, nuevoEstatus as import('@prisma/client').EstatusPedido, auth.usuarioId, auth.rol, nota);
+        return {
+          resultado: `Pedido #${actualizado.id} actualizado a ${actualizado.estatus}.`,
+          accion: 'NINGUNA',
+          pedidoId: actualizado.id,
+        };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { resultado: `No se pudo actualizar el pedido: ${msg}`, accion: 'NINGUNA' };
+      }
+    }
+
     default:
       return { resultado: 'Acción no reconocida.' };
   }
@@ -383,9 +471,14 @@ export async function procesarMensajeChat(
   const chunks = buscarChunksRelevantes(mensaje, 5);
   const contextoRAG = chunks.map((c) => c.texto).join('\n\n');
 
+  const esStaff = auth && ROLES_STAFF.has(auth.rol);
+  const contextoUsuario = esStaff
+    ? `\n== CONTEXTO DEL OPERADOR ==\nEstás hablando con un miembro del personal con rol "${auth!.rol}" (ID ${auth!.usuarioId}). Este usuario puede:\n- Ver todos los pedidos activos (usa listar_pedidos_activos)\n- Cambiar el estatus de cualquier pedido (usa cambiar_estatus_pedido)\n- Consultar cualquier pedido por ID (usa consultar_pedido)\nResponde de forma directa y profesional, como a un colega. No lo lleves a hacer checkout ni le sugieras productos para él.\n`
+    : '';
+
   const systemPrompt = `Eres DulceBot, la asistente virtual de la panadería "Antojo de Yanet".
 Personalidad: amigable, cálida, directa. Hablas como persona real en un chat, sin ser robótica.
-
+${contextoUsuario}
 == REGLA #1 — NUNCA INVENTES INFORMACIÓN ==
 Esto es lo más importante. NUNCA menciones:
 - Nombres de productos, sabores o variantes que no estén en el contexto RAG o en la respuesta de una herramienta.
@@ -441,7 +534,8 @@ ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar
 
   agregarMensaje(sessionId, 'user', mensaje);
 
-  const resultado = await llamarGroq(messages, tools);
+  const toolsActivos = esStaff ? [...tools, ...toolsStaff] : tools;
+  const resultado = await llamarGroq(messages, toolsActivos);
 
   if (esError(resultado)) {
     return { respuesta: resultado.message, accion: 'NINGUNA' };
