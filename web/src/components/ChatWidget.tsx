@@ -155,7 +155,7 @@ export default function ChatWidget() {
       <Grow in={abierto} unmountOnExit style={{ transformOrigin: 'bottom right' }}>
         <Paper elevation={8} sx={{ width: 340, maxWidth: 'calc(100vw - 48px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 3 }}>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', bgcolor: 'primary.main', color: 'primary.contrastText', px: 2, py: 1.5 }}>
-            <Avatar src="/dulcebot.svg" alt="DulceBot" sx={{ width: 36, height: 36, bgcolor: 'transparent' }} />
+            <Avatar src="/dulcebot-avatar.webp" alt="DulceBot" sx={{ width: 36, height: 36 }} />
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="subtitle2">DulceBot</Typography>
               <Typography variant="caption" sx={{ opacity: 0.8 }}>

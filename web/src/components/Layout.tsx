@@ -40,9 +40,9 @@ export default function Layout() {
           <Toolbar disableGutters sx={{ gap: 1 }}>
             <Box
               component="img"
-              src="/dulcebot.svg"
-              alt="DulceBot logo"
-              sx={{ width: 32, height: 32, mr: 1, borderRadius: '50%' }}
+              src="/logo-antojo.webp"
+              alt="Antojo de Yanet"
+              sx={{ width: 36, height: 36, mr: 1, objectFit: 'contain' }}
             />
             <Typography
               variant="h6"
