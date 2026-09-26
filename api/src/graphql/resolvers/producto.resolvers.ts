@@ -12,6 +12,21 @@ import { cargarDocumentos } from '../../lib/rag.js';
 const prisma = new PrismaClient();
 
 /**
+ * Converts a string to title case: each word's first letter is uppercased and the
+ * rest are lowercased. Handles multi-word category names (e.g. "pan dulce" → "Pan Dulce").
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} str - Raw string to transform.
+ * @returns {string} Title-cased string.
+ */
+function toTitleCase(str: string): string {
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
  * Resolver map for the product module.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
@@ -29,10 +44,11 @@ export const productoResolvers = {
       _: unknown,
       { categoria, soloDisponibles }: { categoria?: string; soloDisponibles?: boolean },
     ) => {
+      const catNorm = categoria ? toTitleCase(categoria) : undefined;
       return prisma.producto.findMany({
         where: {
           activo: true,
-          ...(categoria ? { categoria } : {}),
+          ...(catNorm ? { categoria: catNorm } : {}),
           ...(soloDisponibles ? { stockDisponible: { gt: 0 }, requiereEncargo: false } : {}),
         },
         orderBy: [{ categoria: 'asc' }, { nombre: 'asc' }],
@@ -59,10 +75,16 @@ export const productoResolvers = {
       const rows = await prisma.producto.findMany({
         where: { activo: true },
         select: { categoria: true },
-        distinct: ['categoria'],
         orderBy: { categoria: 'asc' },
       });
-      return rows.map((r) => r.categoria);
+      // Normalize to title case and deduplicate (handles legacy rows stored in all-caps)
+      const seen = new Set<string>();
+      const result: string[] = [];
+      for (const r of rows) {
+        const norm = toTitleCase(r.categoria);
+        if (!seen.has(norm)) { seen.add(norm); result.push(norm); }
+      }
+      return result;
     },
 
     /**
@@ -75,7 +97,8 @@ export const productoResolvers = {
      */
     productos: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
       requireRole(ctx, ['ADMIN']);
-      return prisma.producto.findMany({ orderBy: [{ categoria: 'asc' }, { nombre: 'asc' }] });
+      const rows = await prisma.producto.findMany({ orderBy: [{ categoria: 'asc' }, { nombre: 'asc' }] });
+      return rows.map((p) => ({ ...p, categoria: toTitleCase(p.categoria) }));
     },
   },
 
@@ -96,7 +119,9 @@ export const productoResolvers = {
     ) => {
       requireRole(ctx, ['ADMIN']);
       try {
-        const producto = await prisma.producto.create({ data: input as never });
+        const data = { ...input } as Record<string, unknown>;
+        if (typeof data.categoria === 'string') data.categoria = toTitleCase(data.categoria);
+        const producto = await prisma.producto.create({ data: data as never });
         await generarMenuMd();
         void cargarDocumentos();
         return producto;
@@ -125,7 +150,9 @@ export const productoResolvers = {
     ) => {
       requireRole(ctx, ['ADMIN']);
       try {
-        const producto = await prisma.producto.update({ where: { id }, data: input as never });
+        const data = { ...input } as Record<string, unknown>;
+        if (typeof data.categoria === 'string') data.categoria = toTitleCase(data.categoria);
+        const producto = await prisma.producto.update({ where: { id }, data: data as never });
         await generarMenuMd();
         void cargarDocumentos();
         return producto;
