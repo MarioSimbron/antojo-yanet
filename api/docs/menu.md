@@ -4,123 +4,123 @@
 
 ### Atole de guayaba
 - **Precio:** $28 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Atole casero de maíz con guayaba
 
 ### Atole de vainilla
 - **Precio:** $25 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Atole casero de maíz con vainilla
 
 ### Café americano
 - **Precio:** $25 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Café negro preparado al momento
 
 ### Capuchino
 - **Precio:** $35 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Espresso con leche vaporizada y espuma
 
 ### Chocolate caliente
 - **Precio:** $30 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Chocolate artesanal con leche y canela
 
 ### Jugo de naranja natural
 - **Precio:** $30 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Jugo exprimido al momento
 
 ## Conchas
 
 ### Concha chocolate
 - **Precio:** $18 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha con costra de chocolate
 
 ### Concha fresa
 - **Precio:** $20 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha con costra de fresa rosa
 
 ### Concha limón
 - **Precio:** $20 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha con costra de limón y chispas amarillas
 
 ### Concha matcha
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha moderna con costra de té matcha
 
 ### Concha naranja
 - **Precio:** $20 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha con costra de naranja y ralladura
 
 ### Concha natural
 - **Precio:** $15 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha sin costra, pan suave
 
 ### Concha tinta violeta
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Concha con costra teñida de violeta, sabor uva
 
 ### Concha vainilla
 - **Precio:** $18 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Clásica concha de vainilla con costra crujiente
 
 ## Cuernos
 
 ### Cuerno canela
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Cuerno con relleno de canela y azúcar
 
 ### Cuerno chocolate
 - **Precio:** $25 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Cuerno bañado en chocolate oscuro
 
 ### Cuerno mantequilla
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Cuerno hojaldrado con mantequilla
 
 ### Cuerno vainilla
 - **Precio:** $24 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Cuerno hojaldrado con crema de vainilla
 
 ## Empanadas
 
 ### Empanada calabaza
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Empanada de temporada con dulce de calabaza
 
 ### Empanada capulines
 - **Precio:** $24 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Empanada de temporada con mermelada de capulín
 
 ### Empanada manzana
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Empanada de manzana con canela
 
 ### Empanada nuez
 - **Precio:** $24 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Empanada con nuez y piloncillo
 
 ### Empanada piña
 - **Precio:** $20 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Empanada dulce de piña con glaseado
 
 ## Encargos
@@ -174,103 +174,103 @@
 
 ### Croissant artesanal
 - **Precio:** $38 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Croissant hojaldrado con mantequilla francesa
 
 ### Tres leches rebanada
 - **Precio:** $40 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Rebanada de pastel tres leches artesanal
 
 ## Galletas
 
 ### Galleta avena
 - **Precio:** $20 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Galleta integral de avena y miel
 
 ### Galleta choco chips
 - **Precio:** $18 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Galleta suave con chispas de chocolate
 
 ### Galleta jamoncillo
 - **Precio:** $22 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Galleta con pasta de jamoncillo de leche
 
 ### Galleta mantequilla
 - **Precio:** $15 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Galleta crujiente de mantequilla con azúcar
 
 ### Galleta navideña decorada
 - **Precio:** $25 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Galleta de mantequilla con glasé de colores
 
 ## Orejas
 
 ### Oreja caramelizada
 - **Precio:** $20 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Oreja bañada en caramelo crujiente
 
 ### Oreja chocolate
 - **Precio:** $18 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Oreja con chispas de chocolate
 
 ### Oreja clásica
 - **Precio:** $16 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Hojaldrada crujiente con azúcar
 
 ## Polvorones
 
 ### Polvorón canela
 - **Precio:** $14 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Polvorón con canela y nuez
 
 ### Polvorón chocolate
 - **Precio:** $15 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Polvorón de chocolate oscuro
 
 ### Polvorón limón
 - **Precio:** $14 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Polvorón con ralladura de limón y azúcar glass
 
 ### Polvorón natural
 - **Precio:** $12 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Galleta arenosa tradicional con azúcar glass
 
 ### Polvorón vainilla
 - **Precio:** $12 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Polvorón con esencia de vainilla
 
 ## Roles
 
 ### Rol de canela clásico
 - **Precio:** $28 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Rol suave con canela y betún de azúcar
 
 ### Rol de chocolate
 - **Precio:** $30 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Rol con relleno de crema de chocolate
 
 ### Rol de limón
 - **Precio:** $28 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Rol suave con glaseado de limón
 
 ### Rol de mazapán
 - **Precio:** $32 MXN
-- **Disponibilidad:** ✓ Disponible
+- **Disponibilidad:** Disponible
 - Rol dulce con pasta de mazapán
