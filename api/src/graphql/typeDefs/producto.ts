@@ -52,10 +52,12 @@ export const productoTypeDefs = `#graphql
     menu(categoria: String, soloDisponibles: Boolean): [Producto!]!
     producto(id: Int!): Producto
     categorias: [String!]!
+    productos: [Producto!]!
   }
 
   extend type Mutation {
     crearProducto(input: ProductoInput!): Producto!
     actualizarProducto(id: Int!, input: ActualizarProductoInput!): Producto!
+    eliminarProducto(id: Int!): Boolean!
   }
 `;

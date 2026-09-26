@@ -63,6 +63,19 @@ export const productoResolvers = {
       });
       return rows.map((r) => r.categoria);
     },
+
+    /**
+     * Returns ALL products (active and inactive) for admin management. ADMIN only.
+     * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+     * @param {unknown} _ - Parent (unused).
+     * @param {unknown} __ - Arguments (none).
+     * @param {GraphQLContext} ctx - Resolver context; requires the ADMIN role.
+     * @returns {Promise<Producto[]>} All products sorted by category and name.
+     */
+    productos: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
+      requireRole(ctx, ['ADMIN']);
+      return prisma.producto.findMany({ orderBy: [{ categoria: 'asc' }, { nombre: 'asc' }] });
+    },
   },
 
   Mutation: {
@@ -118,6 +131,37 @@ export const productoResolvers = {
         if (err?.code === 'P2025') {
           throw new GraphQLError('Producto no encontrado', {
             extensions: { code: 'NOT_FOUND' },
+          });
+        }
+        throw e;
+      }
+    },
+
+    /**
+     * Hard-deletes a product by ID (ADMIN only). Only safe when no order items
+     * reference the product; otherwise the DB will throw a foreign-key error.
+     * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+     * @param {unknown} _ - Parent (unused).
+     * @param {{ id: number }} args - Product ID to delete.
+     * @param {GraphQLContext} ctx - Resolver context; requires the ADMIN role.
+     * @returns {Promise<boolean>} Always true on success.
+     * @throws {GraphQLError} NOT_FOUND if the product does not exist.
+     * @throws {GraphQLError} TIENE_PEDIDOS if order items still reference this product.
+     */
+    eliminarProducto: async (_: unknown, { id }: { id: number }, ctx: GraphQLContext) => {
+      requireRole(ctx, ['ADMIN']);
+      try {
+        await prisma.producto.delete({ where: { id } });
+        await generarMenuMd();
+        return true;
+      } catch (e: unknown) {
+        const err = e as { code?: string };
+        if (err?.code === 'P2025') {
+          throw new GraphQLError('Producto no encontrado', { extensions: { code: 'NOT_FOUND' } });
+        }
+        if (err?.code === 'P2003') {
+          throw new GraphQLError('El producto tiene pedidos asociados y no puede eliminarse', {
+            extensions: { code: 'TIENE_PEDIDOS' },
           });
         }
         throw e;

@@ -11,9 +11,11 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import HistoryIcon from '@mui/icons-material/History';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import PeopleIcon from '@mui/icons-material/People';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useAuthStore } from '../store/auth.store';
 import EstatusChip, { etiquetaEstatus } from '../components/EstatusChip';
 import EmpleadosPage from './EmpleadosPage';
+import ProductosPage from './ProductosPage';
 
 /**
  * GraphQL query for the staff order listing (used for active orders).
@@ -430,6 +432,7 @@ export default function DashboardPage() {
       roles: ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'],
     },
     { to: '/dashboard/reportes', label: 'Reportes', icon: <BarChartIcon />, roles: ['ADMIN'] },
+    { to: '/dashboard/productos', label: 'Productos', icon: <StorefrontIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/empleados', label: 'Empleados', icon: <PeopleIcon />, roles: ['ADMIN'] },
   ].filter((item) => item.roles.includes(usuario?.rol ?? ''));
 
@@ -459,6 +462,7 @@ export default function DashboardPage() {
           <Route index element={<PedidosActivos />} />
           <Route path="historial" element={<Historial />} />
           <Route path="reportes" element={<Reportes />} />
+          <Route path="productos" element={<ProductosPage />} />
           <Route path="empleados" element={<EmpleadosPage />} />
         </Routes>
       </Box>
