@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, FormControlLabel, Grid, InputAdornment, Snackbar, Stack, Switch,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
+  DialogTitle, Divider, FormControlLabel, Grid, InputAdornment, Snackbar, Stack,
+  Switch, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ImageIcon from '@mui/icons-material/Image';
+import UploadIcon from '@mui/icons-material/Upload';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace('/graphql', '') ?? 'http://localhost:4000';
 
 /**
  * GraphQL query to fetch all products (active and inactive) for admin management.
@@ -88,9 +93,10 @@ const EMPTY_FORM: FormState = {
 };
 
 /**
- * Admin page for managing the product catalog. Shows a table of all products
- * (including inactive ones) with their stock and status. Provides dialogs to
- * create or fully edit a product, and a delete action with confirmation.
+ * Admin page for managing the product catalog. Shows all products (active and inactive)
+ * in a table. Provides a create/edit dialog with image upload, and a delete confirmation.
+ * When a product requires an encargo, the dialog highlights that section so the admin
+ * can fill in the description with requirements and lead-time information.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The products management page.
  */
@@ -99,9 +105,11 @@ export default function ProductosPage() {
   const [editTarget, setEditTarget] = useState<Producto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [uploading, setUploading] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({
     open: false, msg: '', severity: 'success',
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, loading, error, refetch } = useQuery(PRODUCTOS, { fetchPolicy: 'cache-and-network' });
   const [crearProducto, { loading: creating }] = useMutation(CREAR_PRODUCTO);
@@ -110,6 +118,9 @@ export default function ProductosPage() {
 
   const showSnack = (msg: string, severity: 'success' | 'error') =>
     setSnackbar({ open: true, msg, severity });
+
+  const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleOpen = (p?: Producto) => {
     if (p) {
@@ -124,8 +135,8 @@ export default function ProductosPage() {
         activo: p.activo,
         stockDisponible: String(p.stockDisponible),
         requiereEncargo: p.requiereEncargo,
-        temporadaInicio: p.temporadaInicio ?? '',
-        temporadaFin: p.temporadaFin ?? '',
+        temporadaInicio: p.temporadaInicio ? p.temporadaInicio.slice(0, 10) : '',
+        temporadaFin: p.temporadaFin ? p.temporadaFin.slice(0, 10) : '',
       });
     } else {
       setEditTarget(null);
@@ -134,7 +145,26 @@ export default function ProductosPage() {
     setDialogOpen(true);
   };
 
-  const handleClose = () => setDialogOpen(false);
+  const handleClose = () => { setDialogOpen(false); setUploading(false); };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('imagen', file);
+    setUploading(true);
+    try {
+      const res = await fetch(`${API_BASE}/upload-imagen`, { method: 'POST', body: formData });
+      const json = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !json.url) throw new Error(json.error ?? 'Error al subir');
+      setField('imagenUrl', json.url);
+    } catch (err: unknown) {
+      showSnack(err instanceof Error ? err.message : 'No se pudo subir la imagen.', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSave = async () => {
     const input = {
@@ -149,7 +179,6 @@ export default function ProductosPage() {
       temporadaInicio: form.temporadaInicio || undefined,
       temporadaFin: form.temporadaFin || undefined,
     };
-
     try {
       if (editTarget) {
         await actualizarProducto({ variables: { id: editTarget.id, input } });
@@ -180,12 +209,11 @@ export default function ProductosPage() {
 
   const productos: Producto[] = data?.productos ?? [];
   const isSaving = creating || updating;
-  const canSave = form.sku.trim() !== '' && form.nombre.trim() !== '' && form.precio.trim() !== '' && form.categoria.trim() !== '';
-
-  const field = (key: keyof FormState) => ({
-    value: form[key] as string,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value }),
-  });
+  const canSave =
+    form.sku.trim() !== '' &&
+    form.nombre.trim() !== '' &&
+    form.precio.trim() !== '' &&
+    form.categoria.trim() !== '';
 
   if (loading && !data) {
     return (
@@ -243,12 +271,7 @@ export default function ProductosPage() {
                     <Button size="small" startIcon={<EditIcon />} onClick={() => handleOpen(p)}>
                       Editar
                     </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => setDeleteTarget(p)}
-                    >
+                    <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteTarget(p)}>
                       Eliminar
                     </Button>
                   </Stack>
@@ -266,102 +289,242 @@ export default function ProductosPage() {
         </Table>
       </TableContainer>
 
-      {/* Create / Edit dialog */}
-      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="md" fullWidth>
+      {/* ── Create / Edit dialog ─────────────────────────────────────────── */}
+      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{editTarget ? `Editar — ${editTarget.nombre}` : 'Nuevo producto'}</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={4}>
-              <TextField
-                label="SKU"
-                {...field('sku')}
-                fullWidth
-                required
-                disabled={!!editTarget}
-                helperText={editTarget ? 'El SKU no se puede cambiar' : undefined}
-              />
-            </Grid>
-            <Grid item xs={12} sm={8}>
-              <TextField label="Nombre" {...field('nombre')} fullWidth required />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="Descripción" {...field('descripcion')} fullWidth multiline rows={2} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField
-                label="Precio"
-                {...field('precio')}
-                fullWidth
-                required
-                InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField label="Categoría" {...field('categoria')} fullWidth required />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField label="Stock disponible" {...field('stockDisponible')} type="number" fullWidth />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField label="URL de imagen" {...field('imagenUrl')} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Temporada inicio"
-                {...field('temporadaInicio')}
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Temporada fin"
-                {...field('temporadaFin')}
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.activo}
-                    onChange={(e) => setForm({ ...form, activo: e.target.checked })}
+        <DialogContent dividers>
+          <Stack spacing={3}>
+
+            {/* Basic info */}
+            <Box>
+              <Typography variant="overline" color="text.secondary">Información básica</Typography>
+              <Grid container spacing={2} sx={{ mt: 0 }}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="SKU"
+                    value={form.sku}
+                    onChange={(e) => setField('sku', e.target.value)}
+                    fullWidth
+                    required
+                    disabled={!!editTarget}
+                    size="small"
+                    helperText={editTarget ? 'No se puede modificar' : undefined}
                   />
-                }
-                label="Activo (visible en el menú)"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.requiereEncargo}
-                    onChange={(e) => setForm({ ...form, requiereEncargo: e.target.checked })}
+                </Grid>
+                <Grid item xs={12} sm={8}>
+                  <TextField
+                    label="Nombre"
+                    value={form.nombre}
+                    onChange={(e) => setField('nombre', e.target.value)}
+                    fullWidth
+                    required
+                    size="small"
                   />
-                }
-                label="Requiere encargo"
-              />
-            </Grid>
-          </Grid>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Categoría"
+                    value={form.categoria}
+                    onChange={(e) => setField('categoria', e.target.value)}
+                    fullWidth
+                    required
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    label="Precio"
+                    value={form.precio}
+                    onChange={(e) => setField('precio', e.target.value)}
+                    fullWidth
+                    required
+                    size="small"
+                    InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    label="Stock"
+                    value={form.stockDisponible}
+                    onChange={(e) => setField('stockDisponible', e.target.value)}
+                    type="number"
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label="Descripción"
+                    value={form.descripcion}
+                    onChange={(e) => setField('descripcion', e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={form.requiereEncargo ? 3 : 2}
+                    size="small"
+                    helperText={
+                      form.requiereEncargo
+                        ? 'Describe los requisitos del encargo: tiempo de anticipación, tallas, sabores, depósito, etc.'
+                        : undefined
+                    }
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            {/* Image */}
+            <Box>
+              <Typography variant="overline" color="text.secondary">Imagen del producto</Typography>
+              <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mt: 1 }}>
+                <Box
+                  sx={{
+                    width: 100, height: 100, flexShrink: 0, borderRadius: 2,
+                    border: '1px solid', borderColor: 'divider',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden', bgcolor: 'action.hover',
+                  }}
+                >
+                  {form.imagenUrl ? (
+                    <Box
+                      component="img"
+                      src={form.imagenUrl}
+                      alt="preview"
+                      sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <ImageIcon sx={{ fontSize: 36, color: 'text.disabled' }} />
+                  )}
+                </Box>
+                <Stack spacing={1} sx={{ flex: 1 }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleImageUpload}
+                  />
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<UploadIcon />}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    fullWidth
+                  >
+                    {uploading ? 'Subiendo...' : 'Subir imagen'}
+                  </Button>
+                  <TextField
+                    label="O pega una URL"
+                    value={form.imagenUrl}
+                    onChange={(e) => setField('imagenUrl', e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder="https://..."
+                  />
+                </Stack>
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            {/* Settings */}
+            <Box>
+              <Typography variant="overline" color="text.secondary">Configuración</Typography>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.activo}
+                      onChange={(e) => setField('activo', e.target.checked)}
+                      color="success"
+                    />
+                  }
+                  label="Activo (visible en el menú)"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.requiereEncargo}
+                      onChange={(e) => setField('requiereEncargo', e.target.checked)}
+                    />
+                  }
+                  label="Requiere encargo"
+                />
+
+                {form.requiereEncargo && (
+                  <Box
+                    sx={{
+                      mt: 1, p: 2, borderRadius: 2,
+                      bgcolor: 'warning.light', border: '1px solid', borderColor: 'warning.main',
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <AssignmentIcon sx={{ color: 'warning.dark', mt: 0.25, flexShrink: 0 }} />
+                      <Box>
+                        <Typography variant="subtitle2" color="warning.dark" gutterBottom>
+                          Producto de encargo
+                        </Typography>
+                        <Typography variant="body2" color="warning.dark">
+                          El cliente deberá proporcionar fecha de entrega y notas al hacer el pedido.
+                          Usa el campo <strong>Descripción</strong> de arriba para indicar el tiempo
+                          mínimo de anticipación, opciones de personalización y si requiere depósito.
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            {/* Season */}
+            <Box>
+              <Typography variant="overline" color="text.secondary">Temporada (opcional)</Typography>
+              <Grid container spacing={2} sx={{ mt: 0 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Inicio"
+                    value={form.temporadaInicio}
+                    onChange={(e) => setField('temporadaInicio', e.target.value)}
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Fin"
+                    value={form.temporadaFin}
+                    onChange={(e) => setField('temporadaFin', e.target.value)}
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+          </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={handleClose} disabled={isSaving}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSave} disabled={isSaving || !canSave}>
+          <Button variant="contained" onClick={handleSave} disabled={isSaving || !canSave || uploading}>
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
+      {/* ── Delete confirmation ───────────────────────────────────────────── */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Eliminar producto</DialogTitle>
         <DialogContent>
           <Typography>
-            ¿Eliminar <strong>{deleteTarget?.nombre}</strong> permanentemente? Esta acción no se puede
-            deshacer. Si el producto tiene pedidos asociados, la operación fallará.
+            ¿Eliminar <strong>{deleteTarget?.nombre}</strong> permanentemente? Esta acción no se
+            puede deshacer. Si el producto tiene pedidos asociados, la operación fallará.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

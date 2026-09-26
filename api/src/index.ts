@@ -5,8 +5,11 @@
  */
 import 'dotenv/config';
 import http from 'http';
+import path from 'path';
+import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { mergeTypeDefs, mergeResolvers } from '@graphql-tools/merge';
@@ -75,6 +78,38 @@ async function main() {
 
   app.use(cors({ origin: process.env.CORS_ORIGIN }));
   app.use(express.json({ limit: '5mb' }));
+
+  // Serve uploaded product images as static files at /uploads/*
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  app.use('/uploads', express.static(uploadsDir));
+
+  /**
+   * POST /upload-imagen — accepts a single `imagen` file (≤2 MB, images only),
+   * saves it to the `uploads/` folder and returns its public URL.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   */
+  const storage = multer.diskStorage({
+    destination: uploadsDir,
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    },
+  });
+  const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype.startsWith('image/')) cb(null, true);
+      else cb(new Error('Solo se permiten imágenes'));
+    },
+  });
+
+  app.post('/upload-imagen', upload.single('imagen'), (req, res) => {
+    if (!req.file) { res.status(400).json({ error: 'No se subió ningún archivo' }); return; }
+    const baseUrl = process.env.API_URL ?? `http://localhost:${PORT}`;
+    res.json({ url: `${baseUrl}/uploads/${req.file.filename}` });
+  });
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
