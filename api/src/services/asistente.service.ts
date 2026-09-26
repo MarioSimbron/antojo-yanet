@@ -1,5 +1,5 @@
 /**
- * "Yanet" AI assistant service: builds the RAG-augmented prompt, runs the Groq
+ * DulceBot AI assistant service: builds the RAG-augmented prompt, runs the Groq
  * function-calling loop and executes the server-side tools.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
@@ -380,7 +380,7 @@ export async function procesarMensajeChat(
   const chunks = buscarChunksRelevantes(mensaje, 3);
   const contextoRAG = chunks.map((c) => c.texto).join('\n\n');
 
-  const systemPrompt = `Eres Yanet, la asistente virtual de la panadería Antojo de Yanet.
+  const systemPrompt = `Eres DulceBot, la asistente virtual de la panadería Antojo de Yanet.
 Eres amigable, cálida y concisa. Ayudas a los clientes con información sobre el menú,
 horarios, encargos y seguimiento de pedidos.
 
@@ -399,7 +399,7 @@ Reglas sobre compras (muy importantes):
   (sin stock, ambiguos o inexistentes), díselo al cliente con claridad.
 
 Si te preguntan algo fuera de tu alcance (chistes, noticias, temas no relacionados con
-la panadería), responde amablemente: "Soy Yanet, la asistente de la panadería. Solo puedo
+la panadería), responde amablemente: "Soy DulceBot, la asistente de la panadería. Solo puedo
 ayudarte con preguntas sobre nuestro menú, pedidos y servicios. ¿En qué te ayudo?"
 
 Información de contexto:

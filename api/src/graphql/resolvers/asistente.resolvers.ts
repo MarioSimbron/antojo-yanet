@@ -12,7 +12,7 @@ import { procesarMensajeChat } from '../../services/asistente.service.js';
 export const asistenteResolvers = {
   Mutation: {
     /**
-     * Sends a message to Yanet and returns her reply plus the UI action to perform.
+     * Sends a message to DulceBot and returns her reply plus the UI action to perform.
      * Works for guests and authenticated users.
      * @author Mario Simbron Gonzalez <simbron420@gmail.com>
      * @param {unknown} _ - Parent (unused).
