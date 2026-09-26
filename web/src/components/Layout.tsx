@@ -1,6 +1,5 @@
 import { Outlet, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { AppBar, Badge, Box, Button, Container, IconButton, Toolbar, Typography } from '@mui/material';
-import BakeryDiningIcon from '@mui/icons-material/BakeryDining';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAuthStore } from '../store/auth.store';
@@ -39,7 +38,12 @@ export default function Layout() {
       <AppBar position="sticky">
         <Container maxWidth="lg">
           <Toolbar disableGutters sx={{ gap: 1 }}>
-            <BakeryDiningIcon sx={{ mr: 1 }} />
+            <Box
+              component="img"
+              src="/dulcebot.svg"
+              alt="DulceBot logo"
+              sx={{ width: 32, height: 32, mr: 1, borderRadius: '50%' }}
+            />
             <Typography
               variant="h6"
               component={RouterLink}

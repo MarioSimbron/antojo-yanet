@@ -75,8 +75,8 @@ function getSessionId(): string {
 }
 
 /**
- * Floating chat button (MUI Fab) and animated panel for talking to Yanet. Sends messages through the
- * chatAsistente mutation, shows a typing indicator and navigates according to the
+ * Floating chat button (MUI Fab) and animated panel for talking to DulceBot. Sends messages through
+ * the chatAsistente mutation, shows a typing indicator and navigates according to the
  * returned action (ABRIR_CHECKOUT, VER_PEDIDO, VER_MENU) while keeping the panel open;
  * it only closes when the user clicks the close button or the Fab.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
@@ -85,7 +85,7 @@ function getSessionId(): string {
 export default function ChatWidget() {
   const [abierto, setAbierto] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([
-    { rol: 'assistant', texto: '¡Hola! Soy Yanet 👋 ¿En qué te puedo ayudar hoy?' },
+    { rol: 'assistant', texto: '¡Hola! Soy DulceBot 🍞 ¿En qué te puedo ayudar hoy?' },
   ]);
   const [input, setInput] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -155,9 +155,9 @@ export default function ChatWidget() {
       <Grow in={abierto} unmountOnExit style={{ transformOrigin: 'bottom right' }}>
         <Paper elevation={8} sx={{ width: 340, maxWidth: 'calc(100vw - 48px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 3 }}>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', bgcolor: 'primary.main', color: 'primary.contrastText', px: 2, py: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', width: 36, height: 36 }}>Y</Avatar>
+            <Avatar src="/dulcebot.svg" alt="DulceBot" sx={{ width: 36, height: 36, bgcolor: 'transparent' }} />
             <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="subtitle2">Yanet</Typography>
+              <Typography variant="subtitle2">DulceBot</Typography>
               <Typography variant="caption" sx={{ opacity: 0.8 }}>
                 Asistente de la panadería
               </Typography>
@@ -191,7 +191,7 @@ export default function ChatWidget() {
             {cargando && (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', color: 'text.secondary' }}>
                 <CircularProgress size={14} color="inherit" />
-                <Typography variant="caption">Yanet está escribiendo…</Typography>
+                <Typography variant="caption">DulceBot está escribiendo…</Typography>
               </Stack>
             )}
             <div ref={bottomRef} />
@@ -213,7 +213,7 @@ export default function ChatWidget() {
         </Paper>
       </Grow>
 
-      <Fab color="primary" onClick={() => setAbierto(!abierto)} aria-label="Chat con Yanet">
+      <Fab color="primary" onClick={() => setAbierto(!abierto)} aria-label="Chat con DulceBot">
         {abierto ? <CloseIcon /> : <ChatIcon />}
       </Fab>
     </Box>
