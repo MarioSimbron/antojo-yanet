@@ -7,6 +7,7 @@ import { GraphQLError } from 'graphql';
 import { GraphQLContext } from '../../middleware/auth.js';
 import { requireRole } from '../../lib/guards.js';
 import { generarMenuMd } from '../../lib/menu-generator.js';
+import { cargarDocumentos } from '../../lib/rag.js';
 
 const prisma = new PrismaClient();
 
@@ -97,6 +98,7 @@ export const productoResolvers = {
       try {
         const producto = await prisma.producto.create({ data: input as never });
         await generarMenuMd();
+        void cargarDocumentos();
         return producto;
       } catch (e: unknown) {
         const err = e as { code?: string };
@@ -125,6 +127,7 @@ export const productoResolvers = {
       try {
         const producto = await prisma.producto.update({ where: { id }, data: input as never });
         await generarMenuMd();
+        void cargarDocumentos();
         return producto;
       } catch (e: unknown) {
         const err = e as { code?: string };
@@ -153,6 +156,7 @@ export const productoResolvers = {
       try {
         await prisma.producto.delete({ where: { id } });
         await generarMenuMd();
+        void cargarDocumentos();
         return true;
       } catch (e: unknown) {
         const err = e as { code?: string };
