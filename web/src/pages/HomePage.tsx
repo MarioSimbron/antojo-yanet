@@ -1,31 +1,80 @@
+import { useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, Card, CardActionArea, CardContent, Paper, Stack, Typography } from '@mui/material';
-import BakeryDiningIcon from '@mui/icons-material/BakeryDining';
-import CakeIcon from '@mui/icons-material/Cake';
-import CookieIcon from '@mui/icons-material/Cookie';
-import BreakfastDiningIcon from '@mui/icons-material/BreakfastDining';
+import { useQuery, gql } from '@apollo/client';
+import {
+  Box,
+  Button,
+  Card,
+  CardActionArea,
+  CircularProgress,
+  IconButton,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import ChatIcon from '@mui/icons-material/Chat';
+import ProductCard, { type Producto } from '../components/ProductCard';
 
 /**
- * Featured categories shown on the home page, each with its icon.
+ * GraphQL query that loads available (non-encargo) products for the featured carousel.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const FEATURED_QUERY = gql`
+  query Featured {
+    menu(soloDisponibles: true) {
+      id
+      nombre
+      precio
+      imagenUrl
+      categoria
+      stockDisponible
+      requiereEncargo
+      activo
+      descripcion
+    }
+  }
+`;
+
+/**
+ * Featured categories shown on the home page, each with its Unsplash background image.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 const CATEGORIAS = [
-  { nombre: 'Conchas', Icono: BakeryDiningIcon },
-  { nombre: 'Cuernos', Icono: BreakfastDiningIcon },
-  { nombre: 'Roles', Icono: CookieIcon },
-  { nombre: 'Encargos', Icono: CakeIcon },
+  { nombre: 'Conchas',  img: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=400&fit=crop&q=80' },
+  { nombre: 'Cuernos',  img: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&fit=crop&q=80' },
+  { nombre: 'Roles',    img: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&fit=crop&q=80' },
+  { nombre: 'Encargos', img: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&fit=crop&q=80' },
 ];
 
 /**
- * Home page: hero with tagline and menu CTA, featured categories and a custom-order
- * prompt pointing to the chatbot.
+ * Home page: hero with food-photo background, featured products carousel,
+ * photo-backed category cards and a custom-order prompt pointing to the chatbot.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The home page.
  */
 export default function HomePage() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { data, loading } = useQuery<{ menu: Producto[] }>(FEATURED_QUERY);
+
+  const featured = (data?.menu ?? [])
+    .filter((p) => !p.requiereEncargo)
+    .slice(0, 8);
+
+  /**
+   * Scrolls the featured products carousel by the given pixel offset.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   * @param {number} offset - Positive scrolls right, negative scrolls left.
+   * @returns {void}
+   */
+  const scroll = (offset: number) => {
+    scrollRef.current?.scrollBy({ left: offset, behavior: 'smooth' });
+  };
+
   return (
     <Stack spacing={6}>
+      {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <Paper
         elevation={0}
         sx={{
@@ -33,7 +82,17 @@ export default function HomePage() {
           py: { xs: 6, md: 10 },
           px: 2,
           borderRadius: 4,
-          background: 'linear-gradient(135deg, #78350f 0%, #b45309 100%)',
+          background: `
+            linear-gradient(135deg, rgba(120,53,15,0.84) 0%, rgba(180,83,9,0.74) 100%),
+            url(https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1400&fit=crop&q=80)
+          `,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          minHeight: { xs: '55vh', md: '60vh' },
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           color: 'primary.contrastText',
         }}
       >
@@ -48,26 +107,82 @@ export default function HomePage() {
         </Button>
       </Paper>
 
+      {/* ── Featured products carousel ─────────────────────────────────────── */}
+      <Box>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+          <Typography variant="h5" component="h2">
+            Productos destacados
+          </Typography>
+          <Stack direction="row" spacing={0.5}>
+            <IconButton onClick={() => scroll(-240)} size="small" aria-label="Anterior">
+              <ArrowBackIosNewIcon fontSize="small" />
+            </IconButton>
+            <IconButton onClick={() => scroll(240)} size="small" aria-label="Siguiente">
+              <ArrowForwardIosIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Stack>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress color="secondary" />
+          </Box>
+        ) : (
+          <Box
+            ref={scrollRef}
+            sx={{
+              display: 'flex',
+              overflowX: 'auto',
+              gap: 2,
+              pb: 1,
+              scrollbarWidth: 'none',
+              '&::-webkit-scrollbar': { display: 'none' },
+            }}
+          >
+            {featured.map((p) => (
+              <Box key={p.id} sx={{ minWidth: 220, flexShrink: 0 }}>
+                <ProductCard producto={p} />
+              </Box>
+            ))}
+          </Box>
+        )}
+      </Box>
+
+      {/* ── Category cards ────────────────────────────────────────────────── */}
       <Box>
         <Typography variant="h5" component="h2" gutterBottom>
-          Categorías destacadas
+          Categorías
         </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-          {CATEGORIAS.map(({ nombre, Icono }) => (
-            <Card key={nombre}>
+          {CATEGORIAS.map(({ nombre, img }) => (
+            <Card key={nombre} sx={{ overflow: 'hidden' }}>
               <CardActionArea component={RouterLink} to={`/menu?categoria=${nombre}`}>
-                <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                  <Icono sx={{ fontSize: 48, color: 'primary.light', mb: 1 }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    height: 160,
+                    backgroundImage: `
+                      linear-gradient(to top, rgba(0,0,0,0.68) 0%, transparent 60%),
+                      url(${img})
+                    `,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    p: 2,
+                  }}
+                >
+                  <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1 }}>
                     {nombre}
                   </Typography>
-                </CardContent>
+                </Box>
               </CardActionArea>
             </Card>
           ))}
         </Box>
       </Box>
 
+      {/* ── Custom order CTA ──────────────────────────────────────────────── */}
       <Paper elevation={0} sx={{ bgcolor: 'secondary.light', p: 4, textAlign: 'center', borderRadius: 4 }}>
         <ChatIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
         <Typography variant="h6" component="h2" gutterBottom>
