@@ -1,6 +1,8 @@
 /**
  * Apollo Client configuration for the GraphQL API. Includes an error link that
  * automatically refreshes an expired access token and retries the failed operation.
+ * When the refresh itself fails, the error is propagated to the caller so components
+ * with error handlers (e.g. Snackbar) can surface feedback to the user.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 import { ApolloClient, InMemoryCache, Observable, createHttpLink } from '@apollo/client';
@@ -99,7 +101,9 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
 
     activeRefresh.then((newToken) => {
       if (!newToken) {
-        observer.complete();
+        // Refresh failed — user is already logged out via logout() inside tryRefreshToken.
+        // Propagate an error so components with Snackbars can surface feedback.
+        observer.error(new Error('SESSION_EXPIRED'));
         return;
       }
       // Attach the fresh token to the retried operation
@@ -114,7 +118,7 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
         error: observer.error.bind(observer),
         complete: observer.complete.bind(observer),
       });
-    }).catch(() => observer.complete());
+    }).catch((err: unknown) => observer.error(err instanceof Error ? err : new Error('Network error')));
   });
 });
 

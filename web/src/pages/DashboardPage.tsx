@@ -1,9 +1,10 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route, Link as RouterLink, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, List, ListItemButton,
-  ListItemIcon, ListItemText, ListSubheader, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Typography,
+  ListItemIcon, ListItemText, ListSubheader, Paper, Snackbar, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -102,15 +103,18 @@ const TERMINALES = new Set(['ENTREGADO', 'CANCELADO']);
  */
 function PedidosActivos() {
   const { usuario } = useAuthStore();
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   // cache-and-network: show cached data immediately but always re-fetch so new orders
   // placed after the last visit appear without a manual page refresh.
-  const { data, loading, refetch } = useQuery(PEDIDOS_QUERY, {
+  const { data, loading, error, refetch } = useQuery(PEDIDOS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
   const [actualizarEstatus] = useMutation(ACTUALIZAR_ESTATUS, { onCompleted: () => refetch() });
   const [resolverCancelacion] = useMutation(RESOLVER_CANCELACION, { onCompleted: () => refetch() });
 
-  if (loading) return <CircularProgress />;
+  useEffect(() => { if (error) setSnackbarOpen(true); }, [error]);
+
+  if (loading && !data) return <CircularProgress />;
 
   // Only show orders that can still change (hide ENTREGADO / CANCELADO)
   const pedidos: Record<string, unknown>[] = (data?.pedidos ?? []).filter(
@@ -210,6 +214,16 @@ function PedidosActivos() {
           </Card>
         ))}
       </Stack>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={5000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setSnackbarOpen(false)} sx={{ width: '100%' }}>
+          No se pudieron cargar los pedidos. Inténtalo de nuevo.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -243,10 +257,18 @@ function Kpi({ titulo, valor }: { titulo: string; valor: React.ReactNode }) {
  * @returns {JSX.Element | null} The report, or null if no data is available.
  */
 function Reportes() {
-  const { data, loading } = useQuery(REPORTE_QUERY, { fetchPolicy: 'cache-and-network' });
-  if (loading) return <CircularProgress />;
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const { data, loading, error } = useQuery(REPORTE_QUERY, { fetchPolicy: 'cache-and-network' });
+  useEffect(() => { if (error) setSnackbarOpen(true); }, [error]);
+  if (loading && !data) return <CircularProgress />;
   const r = data?.reporteVentas;
-  if (!r) return null;
+  if (!r) return (
+    <>
+      <Snackbar open={snackbarOpen} autoHideDuration={5000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="error" onClose={() => setSnackbarOpen(false)} sx={{ width: '100%' }}>No se pudo cargar el reporte.</Alert>
+      </Snackbar>
+    </>
+  );
   return (
     <Box>
       <Typography variant="h5" component="h2" gutterBottom>
@@ -278,6 +300,9 @@ function Reportes() {
           </TableBody>
         </Table>
       </TableContainer>
+      <Snackbar open={snackbarOpen} autoHideDuration={5000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="error" onClose={() => setSnackbarOpen(false)} sx={{ width: '100%' }}>No se pudo cargar el reporte.</Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -301,10 +326,12 @@ function fmtFecha(iso: string): string {
  * @returns {JSX.Element} The completed-orders history.
  */
 function Historial() {
-  const { data, loading } = useQuery(HISTORIAL_ENTREGADO_QUERY, {
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const { data, loading, error } = useQuery(HISTORIAL_ENTREGADO_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
-  if (loading) return <CircularProgress />;
+  useEffect(() => { if (error) setSnackbarOpen(true); }, [error]);
+  if (loading && !data) return <CircularProgress />;
 
   type PedidoRow = {
     id: number; estatus: string; nombreCliente: string; tipoEntrega: string;
@@ -358,7 +385,7 @@ function Historial() {
                       variant="outlined"
                     />
                     {p.cancelacionMotivo && (
-                      <Typography variant="caption" display="block" color="text.secondary">
+                      <Typography variant="caption" sx={{ display: 'block' }} color="text.secondary">
                         {p.cancelacionMotivo}
                       </Typography>
                     )}
@@ -369,6 +396,9 @@ function Historial() {
           </Table>
         </TableContainer>
       )}
+      <Snackbar open={snackbarOpen} autoHideDuration={5000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="error" onClose={() => setSnackbarOpen(false)} sx={{ width: '100%' }}>No se pudo cargar el historial.</Alert>
+      </Snackbar>
     </Box>
   );
 }
