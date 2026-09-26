@@ -473,7 +473,7 @@ export async function procesarMensajeChat(
 
   const esStaff = auth && ROLES_STAFF.has(auth.rol);
   const contextoUsuario = esStaff
-    ? `\n== CONTEXTO DEL OPERADOR ==\nEstás hablando con un miembro del personal con rol "${auth!.rol}" (ID ${auth!.usuarioId}). Este usuario puede:\n- Ver todos los pedidos activos (usa listar_pedidos_activos)\n- Cambiar el estatus de cualquier pedido (usa cambiar_estatus_pedido)\n- Consultar cualquier pedido por ID (usa consultar_pedido)\nResponde de forma directa y profesional, como a un colega. No lo lleves a hacer checkout ni le sugieras productos para él.\n`
+    ? `\n== CONTEXTO DEL OPERADOR ==\nEstás hablando con un miembro del personal (rol: ${auth!.rol}, ID: ${auth!.usuarioId}). Reglas especiales para este modo:\n- SIEMPRE llama a listar_pedidos_activos cuando pregunten cuántos pedidos hay, qué pedidos están activos, o cualquier pregunta sobre el estado general de los pedidos. NUNCA respondas con "déjame revisar" o "voy a verificar" sin haber llamado primero a la herramienta — eso no es revisar nada.\n- Para cambiar el estatus de un pedido usa cambiar_estatus_pedido.\n- Para ver un pedido específico usa consultar_pedido (el staff puede ver cualquier pedido, no necesita ser propietario).\n- Responde de forma directa y profesional. No los lleves al checkout ni les sugieras productos para ellos.\n`
     : '';
 
   const systemPrompt = `Eres DulceBot, la asistente virtual de la panadería "Antojo de Yanet".

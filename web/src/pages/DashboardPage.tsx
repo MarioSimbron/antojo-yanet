@@ -1,18 +1,19 @@
 import { Routes, Route, Link as RouterLink, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
-  Alert, Box, Button, Card, CardContent, CircularProgress, List, ListItemButton, ListItemIcon,
-  ListItemText, ListSubheader, Paper, Stack, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, List, ListItemButton,
+  ListItemIcon, ListItemText, ListSubheader, Paper, Stack, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import HistoryIcon from '@mui/icons-material/History';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import { useAuthStore } from '../store/auth.store';
 import EstatusChip, { etiquetaEstatus } from '../components/EstatusChip';
 
 /**
- * GraphQL query for the staff order listing.
+ * GraphQL query for the staff order listing (used for active orders).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 const PEDIDOS_QUERY = gql`
@@ -21,6 +22,23 @@ const PEDIDOS_QUERY = gql`
       id estatus nombreCliente tipoEntrega total createdAt
       cancelacionMotivo repartidorId
       items { id esEncargo cantidad producto { nombre } }
+    }
+  }
+`;
+
+/**
+ * GraphQL query for the completed-order history (ENTREGADO + CANCELADO).
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const HISTORIAL_ENTREGADO_QUERY = gql`
+  query HistorialEntregados {
+    entregados: pedidos(estatus: "ENTREGADO") {
+      id estatus nombreCliente tipoEntrega total createdAt
+      items { id cantidad producto { nombre } }
+    }
+    cancelados: pedidos(estatus: "CANCELADO") {
+      id estatus nombreCliente tipoEntrega total createdAt cancelacionMotivo
+      items { id cantidad producto { nombre } }
     }
   }
 `;
@@ -261,8 +279,97 @@ function Reportes() {
 }
 
 /**
+ * Formats an ISO date string as a short locale date + time in Spanish.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} iso - ISO date string.
+ * @returns {string} Formatted date string.
+ */
+function fmtFecha(iso: string): string {
+  return new Date(iso).toLocaleString('es-MX', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+/**
+ * Staff history view: lists all ENTREGADO and CANCELADO orders in a compact table,
+ * newest first. Accessible to every staff role.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @returns {JSX.Element} The completed-orders history.
+ */
+function Historial() {
+  const { data, loading } = useQuery(HISTORIAL_ENTREGADO_QUERY);
+  if (loading) return <CircularProgress />;
+
+  type PedidoRow = {
+    id: number; estatus: string; nombreCliente: string; tipoEntrega: string;
+    total: string; createdAt: string; cancelacionMotivo?: string;
+    items: { id: number; cantidad: number; producto: { nombre: string } }[];
+  };
+
+  const entregados: PedidoRow[] = data?.entregados ?? [];
+  const cancelados: PedidoRow[] = data?.cancelados ?? [];
+  const todos = [...entregados, ...cancelados].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  return (
+    <Box>
+      <Typography variant="h5" component="h2" gutterBottom>
+        Historial de pedidos
+      </Typography>
+      {todos.length === 0 ? (
+        <Typography color="text.secondary">Sin pedidos completados aún.</Typography>
+      ) : (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>#</TableCell>
+                <TableCell>Cliente</TableCell>
+                <TableCell>Productos</TableCell>
+                <TableCell>Entrega</TableCell>
+                <TableCell align="right">Total</TableCell>
+                <TableCell>Fecha</TableCell>
+                <TableCell>Estatus</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {todos.map((p) => (
+                <TableRow key={p.id} hover>
+                  <TableCell>#{p.id}</TableCell>
+                  <TableCell>{p.nombreCliente}</TableCell>
+                  <TableCell>
+                    {p.items.map((i) => `${i.cantidad}× ${i.producto.nombre}`).join(', ')}
+                  </TableCell>
+                  <TableCell>{p.tipoEntrega}</TableCell>
+                  <TableCell align="right">${p.total}</TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{fmtFecha(p.createdAt)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={p.estatus === 'ENTREGADO' ? 'Entregado' : 'Cancelado'}
+                      size="small"
+                      color={p.estatus === 'ENTREGADO' ? 'success' : 'default'}
+                      variant="outlined"
+                    />
+                    {p.cancelacionMotivo && (
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        {p.cancelacionMotivo}
+                      </Typography>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
+  );
+}
+
+/**
  * Staff dashboard shell: side navigation filtered by role and nested routes for active
- * orders (index) and reports (/dashboard/reportes).
+ * orders (index), order history and reports (/dashboard/reportes).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The dashboard page.
  */
@@ -275,6 +382,12 @@ export default function DashboardPage() {
       to: '/dashboard',
       label: 'Pedidos activos',
       icon: <ListAltIcon />,
+      roles: ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'],
+    },
+    {
+      to: '/dashboard/historial',
+      label: 'Historial',
+      icon: <HistoryIcon />,
       roles: ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'],
     },
     { to: '/dashboard/reportes', label: 'Reportes', icon: <BarChartIcon />, roles: ['ADMIN'] },
@@ -304,6 +417,7 @@ export default function DashboardPage() {
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Routes>
           <Route index element={<PedidosActivos />} />
+          <Route path="historial" element={<Historial />} />
           <Route path="reportes" element={<Reportes />} />
         </Routes>
       </Box>
