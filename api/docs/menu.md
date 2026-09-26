@@ -4,7 +4,7 @@
 
 ### Atole de guayaba
 - **Precio:** $28 MXN
-- **Disponibilidad:** Sin stock
+- **Disponibilidad:** Disponible
 - Atole casero de maíz con guayaba
 
 ### Atole de vainilla
