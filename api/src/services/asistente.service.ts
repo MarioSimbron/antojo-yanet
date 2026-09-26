@@ -496,8 +496,14 @@ Si no tienes la información, di "déjame revisar" y usa la herramienta buscar_e
 == REGLA #3 — FLUJO DE COMPRA ==
 - Nunca confirmes que registraste, creaste o confirmaste un pedido. Solo agregas al carrito.
 - El cliente confirma su pedido en el checkout (el sitio lo lleva ahí automáticamente).
-- Si la herramienta reporta ambigüedad (varios productos similares), presenta exactamente las
-  opciones que devolvió la herramienta y pide al cliente que elija una.
+- AMBIGÜEDAD — REGLA CRÍTICA E INNEGOCIABLE: cuando la herramienta devuelve un mensaje de
+  ambigüedad del tipo "X es ambiguo; pregunta al cliente cuál de estos quiere: A, B, C",
+  debes copiar LITERALMENTE esa lista de productos tal como la herramienta la devolvió.
+  ESTÁ ABSOLUTAMENTE PROHIBIDO agregar, inventar, modificar o parafrasear cualquier opción.
+  Si la herramienta dice "Pan de ojo, Pan de ojo integral", esas son las DOS únicas opciones.
+  NUNCA escribas variantes como "Pan de ojo con almendras", "OJO", "Yoyo con queso" o
+  cualquier nombre que no esté en la lista textual de la herramienta.
+  Incumplir esta regla es el error más grave que puedes cometer.
 - Si el cliente pide "surtido" o "varios sabores", llama a agregar_al_carrito con el nombre
   genérico (ej. "concha") y deja que la herramienta resuelva qué opciones hay realmente.
 
@@ -571,11 +577,26 @@ ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar
       pedidoId: resultados.find((r) => r.pedidoId)?.pedidoId,
     };
 
+    // When any tool reported ambiguous candidates, inject an extra reminder so the
+    // model does not invent variants beyond the exact list the tool returned.
+    const toolResultsText = toolMessages.map((m) => (typeof m.content === 'string' ? m.content : '')).join('\n');
+    const hayAmbiguedad = toolResultsText.includes('es ambiguo; pregunta al cliente cuál de estos quiere:');
+    const recordatorioAmbiguedad: import('../lib/groq.js').GroqMessage[] = hayAmbiguedad
+      ? [
+          {
+            role: 'system',
+            content:
+              'RECORDATORIO OBLIGATORIO: muestra al cliente ÚNICA Y EXCLUSIVAMENTE las opciones que aparecen en el resultado de la herramienta. Copialas literalmente. No inventes ni agregues ninguna opción adicional.',
+          },
+        ]
+      : [];
+
     // Second Groq call with the tool results
     const messages2: import('../lib/groq.js').GroqMessage[] = [
       ...messages,
       choice.message as import('../lib/groq.js').GroqMessage,
       ...toolMessages,
+      ...recordatorioAmbiguedad,
     ];
 
     const resultado2 = await llamarGroq(messages2);
