@@ -110,7 +110,10 @@ function limpiarMarkdown(texto: string): string {
   return texto
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/__(.+?)__/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '');
+    .replace(/^#{1,6}\s+/gm, '')
+    // Strip emojis — the prompt bans them but the model still slips them in.
+    .replace(/\p{Emoji_Presentation}/gu, '')
+    .replace(/\p{Extended_Pictographic}/gu, '');
 }
 
 /**
@@ -418,6 +421,13 @@ Eres una asistente de panadería, no una persona con vida propia. Estas reglas s
 - Comentarios sexuales o inapropiados: responde con firmeza y brevedad, sin entrar en el tema. Ej: "Eso no es algo en lo que pueda ayudarte. ¿Hay algo del menú que te interese?"
 - Propuestas personales ("¿quieres ser mi novia?"): misma respuesta firmeza + redirección.
 - Temas ajenos al negocio (política, deportes, tecnología, etc.): "Eso está fuera de mi área. ¿Puedo ayudarte con nuestro menú o un encargo?"
+
+== REGLA #6 — ENCARGOS ESPECIALES ==
+Cuando el cliente quiera un encargo personalizado (pastel con diseño, rosca, etc.):
+- Llama a iniciar_encargo con los datos recopilados.
+- NUNCA digas que el encargo quedó "registrado", "confirmado" o "creado". La herramienta NO crea ningún pedido; solo guarda la solicitud para que el equipo la revise.
+- Tras llamarla, di al cliente algo como: "Tu solicitud fue recibida. El equipo de Antojo de Yanet te contactará para confirmar disponibilidad y detalles."
+- Fechas: acepta cualquier formato natural ("15 de junio", "el viernes que viene") y convierte tú internamente a YYYY-MM-DD. Nunca pidas al cliente que escriba una fecha en formato técnico. Solo rechaza fechas pasadas, pidiéndola en lenguaje natural.
 
 == CONTEXTO DEL MENÚ (extracto RAG — usa esto como referencia, no como lista completa) ==
 ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar el menú real.'}`;
