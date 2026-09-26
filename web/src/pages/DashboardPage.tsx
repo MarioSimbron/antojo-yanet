@@ -7,6 +7,7 @@ import {
   TableCell, TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import HistoryIcon from '@mui/icons-material/History';
 import ListAltIcon from '@mui/icons-material/ListAlt';
@@ -14,8 +15,11 @@ import PeopleIcon from '@mui/icons-material/People';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useAuthStore } from '../store/auth.store';
 import EstatusChip, { etiquetaEstatus } from '../components/EstatusChip';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import EmpleadosPage from './EmpleadosPage';
 import ProductosPage from './ProductosPage';
+import TareasAdminPage from './TareasAdminPage';
+import TareasMaestroPage from './TareasMaestroPage';
 
 /**
  * GraphQL query for the staff order listing (used for active orders).
@@ -418,6 +422,8 @@ export default function DashboardPage() {
   const { usuario } = useAuthStore();
   const { pathname } = useLocation();
 
+  usePushNotifications();
+
   const navItems = [
     {
       to: '/dashboard',
@@ -434,6 +440,8 @@ export default function DashboardPage() {
     { to: '/dashboard/reportes', label: 'Reportes', icon: <BarChartIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/productos', label: 'Productos', icon: <StorefrontIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/empleados', label: 'Empleados', icon: <PeopleIcon />, roles: ['ADMIN'] },
+    { to: '/dashboard/tareas', label: 'Tareas', icon: <AssignmentIcon />, roles: ['ADMIN'] },
+    { to: '/dashboard/mis-tareas', label: 'Mis Tareas', icon: <AssignmentIcon />, roles: ['MAESTRO_PANADERO', 'ADMIN'] },
   ].filter((item) => item.roles.includes(usuario?.rol ?? ''));
 
   return (
@@ -464,6 +472,8 @@ export default function DashboardPage() {
           <Route path="reportes" element={<Reportes />} />
           <Route path="productos" element={<ProductosPage />} />
           <Route path="empleados" element={<EmpleadosPage />} />
+          <Route path="tareas" element={<TareasAdminPage />} />
+          <Route path="mis-tareas" element={<TareasMaestroPage />} />
         </Routes>
       </Box>
     </Stack>

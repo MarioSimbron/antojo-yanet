@@ -4,12 +4,12 @@
 
 ### Atole de guayaba
 - **Precio:** $28 MXN
-- **Disponibilidad:** Disponible
+- **Disponibilidad:** Sin stock
 - Atole casero de maíz con guayaba
 
 ### Atole de vainilla
 - **Precio:** $25 MXN
-- **Disponibilidad:** Disponible
+- **Disponibilidad:** Sin stock
 - Atole casero de maíz con vainilla
 
 ### Café americano
@@ -105,7 +105,7 @@
 
 ### Empanada capulines
 - **Precio:** $24 MXN
-- **Disponibilidad:** Disponible
+- **Disponibilidad:** Sin stock
 - Empanada de temporada con mermelada de capulín
 
 ### Empanada manzana
@@ -225,6 +225,20 @@
 - **Precio:** $16 MXN
 - **Disponibilidad:** Disponible
 - Hojaldrada crujiente con azúcar
+
+## PAN
+
+### OJO
+- **Precio:** $10 MXN
+- **Disponibilidad:** Disponible
+- Pan de ojo de Buey
+
+## Pan
+
+### YOYO
+- **Precio:** $15 MXN
+- **Disponibilidad:** Disponible
+- Pan Yoyo
 
 ## Polvorones
 

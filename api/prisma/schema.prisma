@@ -38,6 +38,13 @@ enum FormaPago {
   TARJETA
 }
 
+enum EstatusTarea {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADA
+  CANCELADA
+}
+
 // ─── Modelos ─────────────────────────────────────────────────────────────────
 
 model Usuario {
@@ -54,6 +61,8 @@ model Usuario {
   pedidos                 Pedido[]                  @relation("UsuarioPedidos")
   pedidosRepartidos       Pedido[]                  @relation("RepartidorPedidos")
   historialAcciones       HistorialEstatusPedido[]
+  tareasAsignadas         TareaProduccion[]         @relation("TareasAsignadas")
+  pushSubscriptions       PushSubscription[]
 
   @@map("usuario")
 }
@@ -74,7 +83,8 @@ model Producto {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  itemsPedido ItemPedido[]
+  itemsPedido      ItemPedido[]
+  tareasProduccion TareaProduccion[]
 
   @@map("producto")
 }
@@ -156,6 +166,37 @@ model FacturaCFDI {
   pedido Pedido @relation(fields: [pedidoId], references: [id])
 
   @@map("factura_cfdi")
+}
+
+model TareaProduccion {
+  id                 Int          @id @default(autoincrement())
+  productoId         Int          @map("producto_id")
+  cantidadSolicitada Int          @map("cantidad_solicitada")
+  cantidadProducida  Int?         @map("cantidad_producida")
+  estatus            EstatusTarea @default(PENDIENTE)
+  notas              String?      @db.Text
+  asignadoPorId      Int          @map("asignado_por_id")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  producto    Producto @relation(fields: [productoId], references: [id])
+  asignadoPor Usuario  @relation("TareasAsignadas", fields: [asignadoPorId], references: [id])
+
+  @@map("tarea_produccion")
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @map("usuario_id")
+  endpoint  String   @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("push_subscription")
 }
 
 model Cupon {

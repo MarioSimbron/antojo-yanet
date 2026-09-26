@@ -49,6 +49,12 @@ export function iniciarSocketIO(server: http.Server): IOServer {
   });
 
   io.on('connection', (socket: Socket) => {
+    // Staff users auto-join their role room on connect so broadcasts reach them
+    if (socket.data.usuario) {
+      const rol: string = socket.data.usuario.rol;
+      void socket.join(`rol:${rol}`);
+    }
+
     socket.on('join_pedido', async (pedidoId: number) => {
       const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
       if (!pedido) {
@@ -67,7 +73,7 @@ export function iniciarSocketIO(server: http.Server): IOServer {
     });
   });
 
-  // Register the emitter function in the order service
+  // Register the emitter function in the order service (supports role rooms too)
   registrarEmitter((evento, room, data) => {
     io.to(room).emit(evento, data);
   });

@@ -8,6 +8,7 @@ import { GraphQLError } from 'graphql';
 import { calcularTotales } from './calcular-totales.js';
 import { puedeTransicionar } from './pedido-state-machine.js';
 import { generarMenuMd } from '../lib/menu-generator.js';
+import { notificarRol, notificarUsuario } from '../lib/push.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
@@ -191,7 +192,7 @@ export async function crearPedido(
       }
     }
 
-    return tx.pedido.create({
+    const pedido = await tx.pedido.create({
       data: {
         usuarioId: auth?.usuarioId ?? null,
         guestToken: auth ? null : (guestToken ?? uuidv4()),
@@ -227,6 +228,46 @@ export async function crearPedido(
       },
       include: { items: { include: { producto: true } }, historial: true, factura: true },
     });
+
+    // Notify staff of the new order
+    emitir('pedido:nuevo', 'rol:ADMIN', { pedidoId: pedido.id, nombreCliente: pedido.nombreCliente });
+    emitir('pedido:nuevo', 'rol:CAJERO', { pedidoId: pedido.id, nombreCliente: pedido.nombreCliente });
+    void notificarRol('ADMIN', {
+      titulo: '🛒 Nuevo pedido recibido',
+      cuerpo: `Pedido #${pedido.id} de ${pedido.nombreCliente}`,
+      url: `/dashboard/pedidos/${pedido.id}`,
+    });
+    void notificarRol('CAJERO', {
+      titulo: '🛒 Nuevo pedido recibido',
+      cuerpo: `Pedido #${pedido.id} de ${pedido.nombreCliente}`,
+      url: `/dashboard/pedidos/${pedido.id}`,
+    });
+
+    // Detect products that hit zero stock and notify
+    for (const item of itemsConDatos) {
+      if (!item.esEncargo) {
+        const prod = await tx.producto.findUnique({
+          where: { id: item.productoId },
+          select: { stockDisponible: true, nombre: true },
+        });
+        if (prod && prod.stockDisponible === 0) {
+          emitir('stock:agotado', 'rol:ADMIN', { productoId: item.productoId, nombre: prod.nombre });
+          emitir('stock:agotado', 'rol:CAJERO', { productoId: item.productoId, nombre: prod.nombre });
+          void notificarRol('ADMIN', {
+            titulo: '⚠️ Stock agotado',
+            cuerpo: `Se acabó "${prod.nombre}". ¿Crear tarea de producción?`,
+            url: '/dashboard/tareas',
+          });
+          void notificarRol('CAJERO', {
+            titulo: '⚠️ Stock agotado',
+            cuerpo: `Se acabó "${prod.nombre}"`,
+            url: '/dashboard/tareas',
+          });
+        }
+      }
+    }
+
+    return pedido;
   });
 }
 
@@ -319,6 +360,36 @@ export async function actualizarEstatus(
     estatusNuevo: nuevoEstatus,
     timestamp: new Date().toISOString(),
   });
+
+  // Role-specific push notifications for key status transitions
+  if (nuevoEstatus === 'LISTO') {
+    void notificarRol('CAJERO', {
+      titulo: '✅ Pedido listo',
+      cuerpo: `Pedido #${pedidoId} está listo para entregar.`,
+      url: `/dashboard`,
+    });
+  }
+  if (nuevoEstatus === 'CANCELADO' && updated.usuarioId) {
+    void notificarUsuario(updated.usuarioId, {
+      titulo: '❌ Pedido cancelado',
+      cuerpo: `Tu pedido #${pedidoId} fue cancelado.`,
+      url: `/mis-pedidos`,
+    });
+  }
+  if (nuevoEstatus === 'EN_CAMINO' && updated.usuarioId) {
+    void notificarUsuario(updated.usuarioId, {
+      titulo: '🚚 Tu pedido va en camino',
+      cuerpo: `El repartidor ya salió con tu pedido #${pedidoId}.`,
+      url: `/seguimiento/${pedidoId}`,
+    });
+  }
+  if (nuevoEstatus === 'ENTREGADO' && updated.usuarioId) {
+    void notificarUsuario(updated.usuarioId, {
+      titulo: '🎉 Pedido entregado',
+      cuerpo: `¡Tu pedido #${pedidoId} fue entregado! Gracias por tu compra.`,
+      url: `/mis-pedidos`,
+    });
+  }
 
   return updated;
 }

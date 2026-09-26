@@ -19,17 +19,23 @@ import { authTypeDefs } from './graphql/typeDefs/auth.js';
 import { productoTypeDefs } from './graphql/typeDefs/producto.js';
 import { pedidoTypeDefs } from './graphql/typeDefs/pedido.js';
 import { asistenteTypeDefs } from './graphql/typeDefs/asistente.js';
+import { tareaTypeDefs } from './graphql/typeDefs/tarea.js';
 
 import { authResolvers } from './graphql/resolvers/auth.resolvers.js';
 import { usuarioResolvers } from './graphql/resolvers/usuario.resolvers.js';
 import { productoResolvers } from './graphql/resolvers/producto.resolvers.js';
 import { pedidoResolvers } from './graphql/resolvers/pedido.resolvers.js';
 import { asistenteResolvers } from './graphql/resolvers/asistente.resolvers.js';
+import { tareaResolvers } from './graphql/resolvers/tarea.resolvers.js';
 
 import { buildContext } from './middleware/auth.js';
 import { iniciarSocketIO } from './services/socket.service.js';
 import { cargarDocumentos } from './lib/rag.js';
 import { generarMenuMd } from './lib/menu-generator.js';
+import { PrismaClient } from '@prisma/client';
+import { verificarToken } from './lib/jwt.js';
+
+const prismaGlobal = new PrismaClient();
 
 /**
  * Root GraphQL types that every module extends with `extend type Query/Mutation`.
@@ -51,6 +57,7 @@ const typeDefs = mergeTypeDefs([
   productoTypeDefs,
   pedidoTypeDefs,
   asistenteTypeDefs,
+  tareaTypeDefs,
 ]);
 
 /**
@@ -63,6 +70,7 @@ const resolvers = mergeResolvers([
   productoResolvers,
   pedidoResolvers,
   asistenteResolvers,
+  tareaResolvers,
 ]);
 
 /**
@@ -113,6 +121,50 @@ async function main() {
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
+  });
+
+  /**
+   * GET /push/vapid-public-key — returns the VAPID public key so the frontend can
+   * create a PushSubscription without bundling the key in the build.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   */
+  app.get('/push/vapid-public-key', (_req, res) => {
+    res.json({ key: process.env.VAPID_PUBLIC_KEY ?? '' });
+  });
+
+  /**
+   * POST /push/suscribir — saves a Web Push subscription for the authenticated user.
+   * Expects Bearer JWT in Authorization header and { endpoint, keys: { p256dh, auth } }
+   * in the body. Upserts to avoid duplicate entries for the same user+endpoint pair.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   */
+  app.post('/push/suscribir', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization ?? '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!token) { res.status(401).json({ error: 'No autorizado' }); return; }
+      const payload = verificarToken(token, 'access');
+      const { endpoint, keys } = req.body as { endpoint: string; keys: { p256dh: string; auth: string } };
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        res.status(400).json({ error: 'Suscripción inválida' }); return;
+      }
+      const existing = await prismaGlobal.pushSubscription.findFirst({
+        where: { usuarioId: payload.usuarioId, endpoint },
+      });
+      if (existing) {
+        await prismaGlobal.pushSubscription.update({
+          where: { id: existing.id },
+          data: { p256dh: keys.p256dh, auth: keys.auth },
+        });
+      } else {
+        await prismaGlobal.pushSubscription.create({
+          data: { usuarioId: payload.usuarioId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+        });
+      }
+      res.json({ ok: true });
+    } catch {
+      res.status(401).json({ error: 'Token inválido' });
+    }
   });
 
   const apolloServer = new ApolloServer({ typeDefs, resolvers });
