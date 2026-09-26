@@ -51,7 +51,7 @@ export function calcularTotales(
   const tieneStock = items.some((i) => !i.esEncargo);
 
   if (tieneEncargo && tieneStock) {
-    throw new GraphQLError('No se pueden mezclar items de encargo y de stock en un mismo pedido', {
+    throw new GraphQLError('MEZCLA_NO_PERMITIDA', {
       extensions: { code: 'MEZCLA_NO_PERMITIDA' },
     });
   }

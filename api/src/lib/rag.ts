@@ -51,21 +51,55 @@ export async function cargarDocumentos(): Promise<Chunk[]> {
 }
 
 /**
- * Keyword relevance score: +1 per query term found in the text, +2 extra when the
- * term appears in a heading.
+ * Normalizes a string for matching: lowercase, strips accents and non-alphanumeric chars.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} s - Raw string.
+ * @returns {string} Normalized form.
+ */
+function normalizar(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ');
+}
+
+/**
+ * Common Spanish stop-words that carry no topical meaning and are excluded from scoring.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const STOP_WORDS = new Set([
+  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+  'de', 'del', 'al', 'en', 'con', 'por', 'para', 'que',
+  'se', 'su', 'sus', 'me', 'te', 'le', 'nos', 'les',
+  'es', 'son', 'fue', 'hay', 'ya', 'si', 'no', 'mi', 'tu',
+]);
+
+/**
+ * Keyword relevance score: +1 per query term found in the text (both normalized),
+ * +2 extra when the term appears in a heading (heading check uses the accent-stripped
+ * lowercased original so the '#' markers are preserved for the regex).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {string} query - Search query.
  * @param {string} texto - Chunk text to score.
  * @returns {number} Relevance score (0 = no match).
  */
 function tfidfScore(query: string, texto: string): number {
-  const queryTerms = query.toLowerCase().split(/\s+/);
-  const textoLower = texto.toLowerCase();
+  const queryTerms = normalizar(query)
+    .split(/\s+/)
+    .filter((t) => t.length > 2 && !STOP_WORDS.has(t));
+  const textoNorm = normalizar(texto);
+  // For heading detection: strip accents but keep '#' markers
+  const textoHeading = texto
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
   let score = 0;
   for (const term of queryTerms) {
-    if (textoLower.includes(term)) score += 1;
-    // Bonus for terms found in headings
-    if (textoLower.match(new RegExp(`^#{1,3}.*${term}`, 'm'))) score += 2;
+    if (textoNorm.includes(term)) score += 1;
+    // Bonus for terms found in headings (safe regex: escape special chars)
+    const safeT = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (textoHeading.match(new RegExp(`^#{1,3}.*${safeT}`, 'm'))) score += 2;
   }
   return score;
 }
