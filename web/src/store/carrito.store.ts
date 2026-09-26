@@ -14,6 +14,7 @@ import { persist } from 'zustand/middleware';
  * @property {number} cantidad - Quantity.
  * @property {boolean} esEncargo - Whether the product is made-to-order.
  * @property {string} [imagenUrl] - Product image URL.
+ * @property {number} [stockDisponible] - Maximum allowed quantity; absent for legacy items persisted before this field was added.
  */
 export interface ItemCarrito {
   productoId: number;
@@ -22,6 +23,7 @@ export interface ItemCarrito {
   cantidad: number;
   esEncargo: boolean;
   imagenUrl?: string;
+  stockDisponible?: number;
 }
 
 /**
@@ -56,14 +58,16 @@ export const useCarritoStore = create<CarritoStore>()(
       agregarItem: (item, cantidad = 1) => {
         const items = get().items;
         const existente = items.find((i) => i.productoId === item.productoId);
+        const max = item.stockDisponible ?? Infinity;
         if (existente) {
+          const nueva = Math.min(existente.cantidad + cantidad, max);
           set({
             items: items.map((i) =>
-              i.productoId === item.productoId ? { ...i, cantidad: i.cantidad + cantidad } : i,
+              i.productoId === item.productoId ? { ...i, cantidad: nueva, stockDisponible: item.stockDisponible } : i,
             ),
           });
         } else {
-          set({ items: [...items, { ...item, cantidad }] });
+          set({ items: [...items, { ...item, cantidad: Math.min(cantidad, max) }] });
         }
       },
       quitarItem: (productoId) =>
@@ -73,9 +77,11 @@ export const useCarritoStore = create<CarritoStore>()(
           set({ items: get().items.filter((i) => i.productoId !== productoId) });
         } else {
           set({
-            items: get().items.map((i) =>
-              i.productoId === productoId ? { ...i, cantidad } : i,
-            ),
+            items: get().items.map((i) => {
+              if (i.productoId !== productoId) return i;
+              const max = i.stockDisponible ?? Infinity;
+              return { ...i, cantidad: Math.min(cantidad, max) };
+            }),
           });
         }
       },

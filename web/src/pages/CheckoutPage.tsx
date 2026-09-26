@@ -274,6 +274,7 @@ export default function CheckoutPage() {
                   size="small"
                   onClick={() => actualizarCantidad(item.productoId, item.cantidad + 1)}
                   aria-label="Agregar uno"
+                  disabled={!item.esEncargo && item.cantidad >= (item.stockDisponible ?? Infinity)}
                 >
                   <AddIcon fontSize="small" />
                 </IconButton>

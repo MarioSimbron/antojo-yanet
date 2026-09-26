@@ -1,7 +1,9 @@
-import { Box, Button, Card, CardActions, CardContent, CardMedia, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardActions, CardContent, CardMedia, Chip, IconButton, Stack, Typography } from '@mui/material';
 import BakeryDiningIcon from '@mui/icons-material/BakeryDining';
 import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 import EventIcon from '@mui/icons-material/Event';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import { useCarritoStore } from '../store/carrito.store';
 
 /**
@@ -31,8 +33,9 @@ export interface Producto {
 
 /**
  * Menu product card: image (or a bread icon placeholder), name, "Encargo" chip,
- * description, price, stock and an add-to-cart button (disabled when a stock product
- * is sold out).
+ * description, price, stock and quantity controls. Shows an add-to-cart button when
+ * the product is not in the cart yet; switches to a -/N/+ stepper once added. The "+"
+ * is disabled when stock is exhausted (not applicable to made-to-order products).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {object} props - Component props.
  * @param {Producto} props.producto - Product to display.
@@ -40,10 +43,17 @@ export interface Producto {
  */
 export default function ProductCard({ producto }: { producto: Producto }) {
   const agregarItem = useCarritoStore((s) => s.agregarItem);
+  const actualizarCantidad = useCarritoStore((s) => s.actualizarCantidad);
+  const cantidadEnCarrito = useCarritoStore(
+    (s) => s.items.find((i) => i.productoId === producto.id)?.cantidad ?? 0,
+  );
+
   const disponible = producto.requiereEncargo || producto.stockDisponible > 0;
+  const maxStock = producto.requiereEncargo ? 9999 : producto.stockDisponible;
+  const enMaximo = !producto.requiereEncargo && cantidadEnCarrito >= producto.stockDisponible;
 
   /**
-   * Adds this product to the cart (or increments its quantity).
+   * Adds this product to the cart with its stock limit.
    * @author Mario Simbron Gonzalez <simbron420@gmail.com>
    * @returns {void}
    */
@@ -54,6 +64,7 @@ export default function ProductCard({ producto }: { producto: Producto }) {
       precio: Number(producto.precio),
       esEncargo: producto.requiereEncargo,
       imagenUrl: producto.imagenUrl,
+      stockDisponible: maxStock,
     });
   };
 
@@ -92,15 +103,42 @@ export default function ProductCard({ producto }: { producto: Producto }) {
         )}
       </CardContent>
       <CardActions sx={{ p: 2, pt: 0 }}>
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={handleAgregar}
-          disabled={!disponible}
-          startIcon={producto.requiereEncargo ? <EventIcon /> : <AddShoppingCartIcon />}
-        >
-          {producto.requiereEncargo ? 'Encargar' : 'Agregar al carrito'}
-        </Button>
+        {cantidadEnCarrito === 0 ? (
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleAgregar}
+            disabled={!disponible}
+            startIcon={producto.requiereEncargo ? <EventIcon /> : <AddShoppingCartIcon />}
+          >
+            {producto.requiereEncargo ? 'Encargar' : 'Agregar al carrito'}
+          </Button>
+        ) : (
+          <Stack direction="row" sx={{ width: '100%', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+            <IconButton
+              size="small"
+              onClick={() => actualizarCantidad(producto.id, cantidadEnCarrito - 1)}
+              color="primary"
+              aria-label="Quitar uno"
+              sx={{ border: 1, borderColor: 'primary.main' }}
+            >
+              <RemoveIcon fontSize="small" />
+            </IconButton>
+            <Typography variant="body1" sx={{ minWidth: 32, textAlign: 'center', fontWeight: 600 }}>
+              {cantidadEnCarrito}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => actualizarCantidad(producto.id, cantidadEnCarrito + 1)}
+              color="primary"
+              disabled={enMaximo}
+              aria-label="Agregar uno"
+              sx={{ border: 1, borderColor: enMaximo ? 'divider' : 'primary.main' }}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        )}
       </CardActions>
     </Card>
   );
