@@ -41,7 +41,7 @@ export async function notificarRol(rol: Rol, payload: PushPayload): Promise<void
   const subs = await prisma.pushSubscription.findMany({
     where: { usuario: { rol } },
   });
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     subs.map((s) =>
       webPush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
@@ -49,6 +49,11 @@ export async function notificarRol(rol: Rol, payload: PushPayload): Promise<void
       ),
     ),
   );
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`[push] notificarRol(${rol}) sub[${subs[i]?.id}] failed:`, r.reason);
+    }
+  });
 }
 
 /**
@@ -60,7 +65,7 @@ export async function notificarRol(rol: Rol, payload: PushPayload): Promise<void
  */
 export async function notificarUsuario(usuarioId: number, payload: PushPayload): Promise<void> {
   const subs = await prisma.pushSubscription.findMany({ where: { usuarioId } });
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     subs.map((s) =>
       webPush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
@@ -68,4 +73,9 @@ export async function notificarUsuario(usuarioId: number, payload: PushPayload):
       ),
     ),
   );
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`[push] notificarUsuario(${usuarioId}) sub[${subs[i]?.id}] failed:`, r.reason);
+    }
+  });
 }

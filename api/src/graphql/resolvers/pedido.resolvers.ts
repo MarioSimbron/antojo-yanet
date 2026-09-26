@@ -14,6 +14,7 @@ import {
   resolverCancelacion,
   verificarOwnership,
 } from '../../services/pedido.service.js';
+import { notificarUsuario } from '../../lib/push.js';
 
 const prisma = new PrismaClient();
 
@@ -258,6 +259,11 @@ export const pedidoResolvers = {
         where: { id: pedidoId },
         data: { repartidorId },
         include: incluirRelaciones(),
+      });
+      void notificarUsuario(repartidorId, {
+        titulo: '🛵 Tienes una entrega asignada',
+        cuerpo: `Se te asignó el pedido #${pedidoId} para entrega a domicilio.`,
+        url: '/dashboard',
       });
       return updated;
     },

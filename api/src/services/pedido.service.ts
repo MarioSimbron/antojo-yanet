@@ -383,11 +383,18 @@ export async function actualizarEstatus(
       url: `/seguimiento/${pedidoId}`,
     });
   }
-  if (nuevoEstatus === 'ENTREGADO' && updated.usuarioId) {
-    void notificarUsuario(updated.usuarioId, {
-      titulo: '🎉 Pedido entregado',
-      cuerpo: `¡Tu pedido #${pedidoId} fue entregado! Gracias por tu compra.`,
-      url: `/mis-pedidos`,
+  if (nuevoEstatus === 'ENTREGADO') {
+    if (updated.usuarioId) {
+      void notificarUsuario(updated.usuarioId, {
+        titulo: '🎉 Pedido entregado',
+        cuerpo: `¡Tu pedido #${pedidoId} fue entregado! Gracias por tu compra.`,
+        url: `/mis-pedidos`,
+      });
+    }
+    void notificarRol('ADMIN', {
+      titulo: '✅ Entrega completada',
+      cuerpo: `Pedido #${pedidoId} fue entregado exitosamente.`,
+      url: '/dashboard',
     });
   }
 
