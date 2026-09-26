@@ -172,44 +172,62 @@ export async function crearPedido(
 
   const estatusInicial: EstatusPedido = tieneEncargo ? 'ESPERANDO_CONFIRMACION' : 'PENDIENTE';
 
-  const pedido = await prisma.pedido.create({
-    data: {
-      usuarioId: auth?.usuarioId ?? null,
-      guestToken: auth ? null : (guestToken ?? uuidv4()),
-      nombreCliente,
-      email,
-      telefono,
-      tipoEntrega: input.tipoEntrega as TipoEntrega,
-      direccion: input.direccion,
-      formaPago: input.formaPago as FormaPago,
-      estatus: estatusInicial,
-      subtotal: totales.subtotal,
-      costoEnvio: totales.costoEnvio,
-      total: totales.total,
-      montoDeposito: totales.montoDeposito,
-      porcentajeDeposito: totales.porcentajeDeposito,
-      fechaEntregaEstimada: input.fechaEntregaEstimada
-        ? new Date(input.fechaEntregaEstimada)
-        : null,
-      notasEncargo: input.notasEncargo ?? null,
-      imagenRefUrl: input.imagenRefUrl ?? null,
-      items: {
-        create: itemsConDatos.map((i) => ({
-          productoId: i.productoId,
-          cantidad: i.cantidad,
-          precioUnitario: i.precioUnitario,
-          esEncargo: i.esEncargo,
-          mensajePersonalizado: i.mensajePersonalizado,
-        })),
-      },
-      historial: {
-        create: [{ estatus: estatusInicial, actorId: auth?.usuarioId ?? null }],
-      },
-    },
-    include: { items: { include: { producto: true } }, historial: true, factura: true },
-  });
+  // Atomic stock reservation + order creation: verifies and decrements stock inside a
+  // single transaction so concurrent requests cannot oversell the same product.
+  return prisma.$transaction(async (tx) => {
+    for (const item of itemsConDatos) {
+      if (!item.esEncargo) {
+        const prod = productos.find((p) => p.id === item.productoId)!;
+        const result = await tx.producto.updateMany({
+          where: { id: item.productoId, stockDisponible: { gte: item.cantidad } },
+          data: { stockDisponible: { decrement: item.cantidad } },
+        });
+        if (result.count === 0) {
+          throw new GraphQLError(
+            `Stock insuficiente para "${prod.nombre}"`,
+            { extensions: { code: 'STOCK_INSUFICIENTE' } },
+          );
+        }
+      }
+    }
 
-  return pedido;
+    return tx.pedido.create({
+      data: {
+        usuarioId: auth?.usuarioId ?? null,
+        guestToken: auth ? null : (guestToken ?? uuidv4()),
+        nombreCliente,
+        email,
+        telefono,
+        tipoEntrega: input.tipoEntrega as TipoEntrega,
+        direccion: input.direccion,
+        formaPago: input.formaPago as FormaPago,
+        estatus: estatusInicial,
+        subtotal: totales.subtotal,
+        costoEnvio: totales.costoEnvio,
+        total: totales.total,
+        montoDeposito: totales.montoDeposito,
+        porcentajeDeposito: totales.porcentajeDeposito,
+        fechaEntregaEstimada: input.fechaEntregaEstimada
+          ? new Date(input.fechaEntregaEstimada)
+          : null,
+        notasEncargo: input.notasEncargo ?? null,
+        imagenRefUrl: input.imagenRefUrl ?? null,
+        items: {
+          create: itemsConDatos.map((i) => ({
+            productoId: i.productoId,
+            cantidad: i.cantidad,
+            precioUnitario: i.precioUnitario,
+            esEncargo: i.esEncargo,
+            mensajePersonalizado: i.mensajePersonalizado,
+          })),
+        },
+        historial: {
+          create: [{ estatus: estatusInicial, actorId: auth?.usuarioId ?? null }],
+        },
+      },
+      include: { items: { include: { producto: true } }, historial: true, factura: true },
+    });
+  });
 }
 
 /**
@@ -244,7 +262,10 @@ export async function actualizarEstatus(
   rol: string,
   nota?: string,
 ) {
-  const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+  const pedido = await prisma.pedido.findUnique({
+    where: { id: pedidoId },
+    include: { items: { select: { productoId: true, cantidad: true, esEncargo: true } } },
+  });
   if (!pedido) {
     throw new GraphQLError('Pedido no encontrado', { extensions: { code: 'NOT_FOUND' } });
   }
@@ -262,13 +283,24 @@ export async function actualizarEstatus(
     });
   }
 
-  const updated = await prisma.pedido.update({
-    where: { id: pedidoId },
-    data: {
-      estatus: nuevoEstatus,
-      historial: { create: [{ estatus: nuevoEstatus, actorId, nota }] },
-    },
-    include: { items: { include: { producto: true } }, historial: true, factura: true },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Restore stock when staff directly cancels a stock order
+    if (nuevoEstatus === 'CANCELADO') {
+      for (const item of pedido.items.filter((i) => !i.esEncargo)) {
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: { stockDisponible: { increment: item.cantidad } },
+        });
+      }
+    }
+    return tx.pedido.update({
+      where: { id: pedidoId },
+      data: {
+        estatus: nuevoEstatus,
+        historial: { create: [{ estatus: nuevoEstatus, actorId, nota }] },
+      },
+      include: { items: { include: { producto: true } }, historial: true, factura: true },
+    });
   });
 
   // Credit loyalty points when the order reaches ENTREGADO
@@ -331,16 +363,27 @@ export async function solicitarCancelacion(
   const autoAprobar = pedido.estatus === 'PENDIENTE' && !tieneEncargo;
   const nuevoEstatus: EstatusPedido = autoAprobar ? 'CANCELADO' : 'SOLICITUD_CANCELACION';
 
-  return prisma.pedido.update({
-    where: { id: pedidoId },
-    data: {
-      estatus: nuevoEstatus,
-      cancelacionMotivo: motivo,
-      historial: {
-        create: [{ estatus: nuevoEstatus, actorId: auth?.usuarioId ?? null, nota: motivo }],
+  return prisma.$transaction(async (tx) => {
+    // Restore stock when the cancellation is immediately approved
+    if (autoAprobar) {
+      for (const item of pedido.items.filter((i) => !i.esEncargo)) {
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: { stockDisponible: { increment: item.cantidad } },
+        });
+      }
+    }
+    return tx.pedido.update({
+      where: { id: pedidoId },
+      data: {
+        estatus: nuevoEstatus,
+        cancelacionMotivo: motivo,
+        historial: {
+          create: [{ estatus: nuevoEstatus, actorId: auth?.usuarioId ?? null, nota: motivo }],
+        },
       },
-    },
-    include: { items: { include: { producto: true } }, historial: true, factura: true },
+      include: { items: { include: { producto: true } }, historial: true, factura: true },
+    });
   });
 }
 
@@ -387,13 +430,22 @@ export async function resolverCancelacion(
       }
     }
 
-    return prisma.pedido.update({
-      where: { id: pedidoId },
-      data: {
-        estatus: 'CANCELADO',
-        historial: { create: [{ estatus: 'CANCELADO', actorId }] },
-      },
-      include: { items: { include: { producto: true } }, historial: true, factura: true },
+    return prisma.$transaction(async (tx) => {
+      // Restore stock for non-encargo items when staff approves the cancellation
+      for (const item of pedido.items.filter((i) => !i.esEncargo)) {
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: { stockDisponible: { increment: item.cantidad } },
+        });
+      }
+      return tx.pedido.update({
+        where: { id: pedidoId },
+        data: {
+          estatus: 'CANCELADO',
+          historial: { create: [{ estatus: 'CANCELADO', actorId }] },
+        },
+        include: { items: { include: { producto: true } }, historial: true, factura: true },
+      });
     });
   }
 
