@@ -100,6 +100,8 @@ model Pedido {
   repartidorId          Int?          @map("repartidor_id")
   tiempoEstimadoMinutos Int?          @map("tiempo_estimado_minutos")
   cancelacionMotivo     String?       @map("cancelacion_motivo") @db.Text
+  notasEncargo          String?       @map("notas_encargo") @db.Text
+  imagenRefUrl          String?       @map("imagen_ref_url") @db.LongText
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 

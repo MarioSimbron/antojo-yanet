@@ -95,6 +95,8 @@ export async function crearPedido(
     nombreCliente?: string;
     email?: string;
     telefono?: string;
+    notasEncargo?: string;
+    imagenRefUrl?: string;
   },
   auth?: { usuarioId: number; rol: string },
   guestToken?: string,
@@ -189,6 +191,8 @@ export async function crearPedido(
       fechaEntregaEstimada: input.fechaEntregaEstimada
         ? new Date(input.fechaEntregaEstimada)
         : null,
+      notasEncargo: input.notasEncargo ?? null,
+      imagenRefUrl: input.imagenRefUrl ?? null,
       items: {
         create: itemsConDatos.map((i) => ({
           productoId: i.productoId,

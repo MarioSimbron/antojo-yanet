@@ -5,6 +5,7 @@ import {
   Alert, Box, Button, Card, CardContent, Checkbox, Chip, Collapse, Divider, FormControlLabel,
   IconButton, MenuItem, Paper, Stack, TextField, Typography,
 } from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
@@ -19,7 +20,7 @@ import { useAuthStore } from '../store/auth.store';
  */
 const CREAR_PEDIDO = gql`
   mutation CrearPedido($input: CrearPedidoInput!) {
-    crearPedido(input: $input) { id guestToken total estatus }
+    crearPedido(input: $input) { id guestToken total estatus notasEncargo }
   }
 `;
 
@@ -47,6 +48,8 @@ export default function CheckoutPage() {
     rfc: '',
     razonSocial: '',
     usoCFDI: 'G03',
+    notasEncargo: '',
+    imagenRefUrl: '',
   });
   const [error, setError] = useState('');
   const [pedidosCreados, setPedidosCreados] = useState<{ id: number; token?: string }[]>([]);
@@ -135,6 +138,8 @@ export default function CheckoutPage() {
               nombreCliente: form.nombre,
               email: form.email,
               telefono: form.telefono,
+              notasEncargo: set.esEncargo && form.notasEncargo ? form.notasEncargo : undefined,
+              imagenRefUrl: set.esEncargo && form.imagenRefUrl ? form.imagenRefUrl : undefined,
             },
           },
         });
@@ -270,6 +275,62 @@ export default function CheckoutPage() {
                 required
                 slotProps={{ inputLabel: { shrink: true } }}
               />
+            )}
+
+            {itemsEncargo.length > 0 && (
+              <>
+                <TextField
+                  multiline
+                  minRows={3}
+                  label="Detalles del encargo"
+                  placeholder="Describe el diseño, sabor, relleno, mensaje en el pastel, colores, etc."
+                  value={form.notasEncargo}
+                  onChange={(e) => setForm({ ...form, notasEncargo: e.target.value })}
+                />
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Imagen de referencia (opcional)
+                  </Typography>
+                  {form.imagenRefUrl ? (
+                    <Stack spacing={1}>
+                      <Box
+                        component="img"
+                        src={form.imagenRefUrl}
+                        alt="Referencia del encargo"
+                        sx={{ maxHeight: 180, maxWidth: '100%', borderRadius: 2, objectFit: 'contain', border: '1px solid', borderColor: 'divider' }}
+                      />
+                      <Button size="small" color="error" variant="outlined" onClick={() => setForm({ ...form, imagenRefUrl: '' })}>
+                        Quitar imagen
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Button
+                      component="label"
+                      variant="outlined"
+                      startIcon={<UploadFileIcon />}
+                      size="small"
+                    >
+                      Subir imagen
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 2 * 1024 * 1024) {
+                            alert('La imagen debe pesar menos de 2 MB.');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = () => setForm((f) => ({ ...f, imagenRefUrl: reader.result as string }));
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </Button>
+                  )}
+                </Box>
+              </>
             )}
 
             <FormControlLabel

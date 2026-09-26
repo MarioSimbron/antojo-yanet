@@ -51,6 +51,8 @@ export const pedidoTypeDefs = `#graphql
     repartidorId: Int
     tiempoEstimadoMinutos: Int
     cancelacionMotivo: String
+    notasEncargo: String
+    imagenRefUrl: String
     createdAt: String!
     items: [ItemPedido!]!
     historial: [HistorialEstatus!]!
@@ -85,6 +87,8 @@ export const pedidoTypeDefs = `#graphql
     nombreCliente: String
     email: String
     telefono: String
+    notasEncargo: String
+    imagenRefUrl: String
   }
 
   input FacturaInput {
