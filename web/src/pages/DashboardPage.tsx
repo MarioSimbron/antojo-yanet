@@ -243,7 +243,7 @@ function Kpi({ titulo, valor }: { titulo: string; valor: React.ReactNode }) {
  * @returns {JSX.Element | null} The report, or null if no data is available.
  */
 function Reportes() {
-  const { data, loading } = useQuery(REPORTE_QUERY);
+  const { data, loading } = useQuery(REPORTE_QUERY, { fetchPolicy: 'cache-and-network' });
   if (loading) return <CircularProgress />;
   const r = data?.reporteVentas;
   if (!r) return null;

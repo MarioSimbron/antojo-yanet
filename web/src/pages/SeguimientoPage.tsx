@@ -42,6 +42,7 @@ export default function SeguimientoPage() {
   const { data, loading, error, refetch } = useQuery(PEDIDO_QUERY, {
     variables: { id: Number(pedidoId), token },
     skip: !pedidoId,
+    fetchPolicy: 'cache-and-network',
   });
 
   const { unirseAPedido, onEstadoActualizado } = useSocket();

@@ -31,6 +31,7 @@ export default function MenuPage() {
 
   const { data, loading, error } = useQuery(MENU_QUERY, {
     variables: { categoria: categoria || undefined, soloDisponibles },
+    fetchPolicy: 'cache-and-network',
   });
 
   const categorias: string[] = ['', ...(data?.categorias ?? [])];

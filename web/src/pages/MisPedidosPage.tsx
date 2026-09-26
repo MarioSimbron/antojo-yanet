@@ -24,7 +24,7 @@ const MIS_PEDIDOS = gql`
  * @returns {JSX.Element} The orders list.
  */
 export default function MisPedidosPage() {
-  const { data, loading } = useQuery(MIS_PEDIDOS);
+  const { data, loading } = useQuery(MIS_PEDIDOS, { fetchPolicy: 'cache-and-network' });
 
   if (loading) {
     return (
