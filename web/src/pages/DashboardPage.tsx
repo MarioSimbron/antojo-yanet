@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Link as RouterLink, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, List, ListItemButton,
-  ListItemIcon, ListItemText, ListSubheader, Paper, Snackbar, Stack, Table, TableBody,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl,
+  InputLabel, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader,
+  MenuItem, Paper, Select, Snackbar, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -11,6 +12,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import HistoryIcon from '@mui/icons-material/History';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import PeopleIcon from '@mui/icons-material/People';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useAuthStore } from '../store/auth.store';
@@ -28,10 +30,30 @@ import TareasMaestroPage from './TareasMaestroPage';
 const PEDIDOS_QUERY = gql`
   query Pedidos($estatus: String) {
     pedidos(estatus: $estatus) {
-      id estatus nombreCliente tipoEntrega total createdAt
+      id estatus nombreCliente tipoEntrega total createdAt direccion
       cancelacionMotivo repartidorId
       items { id esEncargo cantidad producto { nombre } }
     }
+  }
+`;
+
+/**
+ * GraphQL query for listing all staff users (filtered client-side for REPARTIDOR).
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const REPARTIDORES_QUERY = gql`
+  query Repartidores {
+    usuarios { id nombre rol }
+  }
+`;
+
+/**
+ * GraphQL mutation that assigns a delivery driver to a LISTO home-delivery order.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const ASIGNAR_REPARTIDOR = gql`
+  mutation AsignarRepartidor($pedidoId: Int!, $repartidorId: Int!) {
+    asignarRepartidor(pedidoId: $pedidoId, repartidorId: $repartidorId) { id repartidorId }
   }
 `;
 
@@ -112,13 +134,25 @@ const TERMINALES = new Set(['ENTREGADO', 'CANCELADO']);
 function PedidosActivos() {
   const { usuario } = useAuthStore();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [repartidorPorPedido, setRepartidorPorPedido] = useState<Record<number, number>>({});
+
+  const puedeAsignar = usuario?.rol === 'ADMIN' || usuario?.rol === 'CAJERO';
+
   // cache-and-network: show cached data immediately but always re-fetch so new orders
   // placed after the last visit appear without a manual page refresh.
   const { data, loading, error, refetch } = useQuery(PEDIDOS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: repData } = useQuery(REPARTIDORES_QUERY, {
+    skip: !puedeAsignar,
+    fetchPolicy: 'cache-and-network',
+  });
   const [actualizarEstatus] = useMutation(ACTUALIZAR_ESTATUS, { onCompleted: () => refetch() });
   const [resolverCancelacion] = useMutation(RESOLVER_CANCELACION, { onCompleted: () => refetch() });
+  const [asignarRepartidor] = useMutation(ASIGNAR_REPARTIDOR, { onCompleted: () => refetch() });
+
+  const repartidores: { id: number; nombre: string }[] =
+    (repData?.usuarios ?? []).filter((u: { id: number; nombre: string; rol: string }) => u.rol === 'REPARTIDOR');
 
   useEffect(() => { if (error) setSnackbarOpen(true); }, [error]);
 
@@ -175,9 +209,15 @@ function PedidosActivos() {
                 </Box>
                 <EstatusChip estatus={p.estatus as string} />
               </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: p.direccion ? 0.5 : 2 }}>
                 {p.tipoEntrega as string} · ${p.total as string} MXN
               </Typography>
+              {(p.direccion as string | null) && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <LocalShippingIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
+                  {p.direccion as string}
+                </Typography>
+              )}
               {(p.estatus as string) === 'SOLICITUD_CANCELACION' && (
                 <Alert
                   severity="error"
@@ -204,6 +244,48 @@ function PedidosActivos() {
                 >
                   Motivo: {p.cancelacionMotivo as string}
                 </Alert>
+              )}
+              {/* Delivery assignment widget — shown for LISTO home-delivery orders without a driver */}
+              {puedeAsignar && (p.estatus as string) === 'LISTO' && p.tipoEntrega === 'DOMICILIO' && !(p.repartidorId as number | null) && (
+                <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: 'center' }}>
+                  <FormControl size="small" sx={{ minWidth: 180 }}>
+                    <InputLabel>Repartidor</InputLabel>
+                    <Select
+                      label="Repartidor"
+                      value={repartidorPorPedido[p.id as number] ?? ''}
+                      onChange={(e) =>
+                        setRepartidorPorPedido((prev) => ({ ...prev, [p.id as number]: Number(e.target.value) }))
+                      }
+                    >
+                      {repartidores.length === 0 && (
+                        <MenuItem disabled value="">Sin repartidores disponibles</MenuItem>
+                      )}
+                      {repartidores.map((r) => (
+                        <MenuItem key={r.id} value={r.id}>{r.nombre}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<LocalShippingIcon />}
+                    disabled={!repartidorPorPedido[p.id as number]}
+                    onClick={() =>
+                      void asignarRepartidor({
+                        variables: { pedidoId: p.id, repartidorId: repartidorPorPedido[p.id as number] },
+                      })
+                    }
+                  >
+                    Asignar
+                  </Button>
+                </Stack>
+              )}
+              {/* Show assigned driver name when already set */}
+              {puedeAsignar && (p.repartidorId as number | null) && (p.estatus as string) !== 'ENTREGADO' && (
+                <Typography variant="body2" sx={{ mb: 1, color: 'success.main' }}>
+                  <LocalShippingIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
+                  {repartidores.find((r) => r.id === (p.repartidorId as number))?.nombre ?? `Repartidor #${p.repartidorId as number}`}
+                </Typography>
               )}
               <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
                 {transicionesParaPedido(p).map((est) => (
