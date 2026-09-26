@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Box, Button, Card, CardActions, CardContent, CardMedia, Chip, IconButton, Stack, Typography } from '@mui/material';
 import BakeryDiningIcon from '@mui/icons-material/BakeryDining';
 import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
@@ -44,6 +45,7 @@ export interface Producto {
 export default function ProductCard({ producto }: { producto: Producto }) {
   const agregarItem = useCarritoStore((s) => s.agregarItem);
   const actualizarCantidad = useCarritoStore((s) => s.actualizarCantidad);
+  const actualizarStock = useCarritoStore((s) => s.actualizarStock);
   const cantidadEnCarrito = useCarritoStore(
     (s) => s.items.find((i) => i.productoId === producto.id)?.cantidad ?? 0,
   );
@@ -51,6 +53,14 @@ export default function ProductCard({ producto }: { producto: Producto }) {
   const disponible = producto.requiereEncargo || producto.stockDisponible > 0;
   const maxStock = producto.requiereEncargo ? 9999 : producto.stockDisponible;
   const enMaximo = !producto.requiereEncargo && cantidadEnCarrito >= producto.stockDisponible;
+
+  // Sync real stock into the cart item whenever the card renders. This fixes items
+  // persisted in localStorage before stockDisponible was introduced (they have no cap
+  // and may carry a quantity that exceeds the actual stock).
+  useEffect(() => {
+    if (cantidadEnCarrito > 0) actualizarStock(producto.id, maxStock);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [producto.id, maxStock]);
 
   /**
    * Adds this product to the cart with its stock limit.

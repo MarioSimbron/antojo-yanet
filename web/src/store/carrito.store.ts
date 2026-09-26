@@ -34,6 +34,9 @@ export interface ItemCarrito {
  *   a quantity is given).
  * @property {Function} quitarItem - Removes a product from the cart.
  * @property {Function} actualizarCantidad - Sets a quantity (≤ 0 removes the item).
+ * @property {Function} actualizarStock - Syncs the stored stockDisponible for an item that is
+ *   already in the cart, capping cantidad at the new limit. Used by ProductCard to fix items
+ *   that were persisted before this field existed.
  * @property {Function} limpiarCarrito - Empties the cart.
  * @property {Function} calcularSubtotal - Returns the sum of price × quantity.
  */
@@ -42,6 +45,7 @@ interface CarritoStore {
   agregarItem: (item: Omit<ItemCarrito, 'cantidad'>, cantidad?: number) => void;
   quitarItem: (productoId: number) => void;
   actualizarCantidad: (productoId: number, cantidad: number) => void;
+  actualizarStock: (productoId: number, stockDisponible: number) => void;
   limpiarCarrito: () => void;
   calcularSubtotal: () => number;
 }
@@ -84,6 +88,14 @@ export const useCarritoStore = create<CarritoStore>()(
             }),
           });
         }
+      },
+      actualizarStock: (productoId, stockDisponible) => {
+        set({
+          items: get().items.map((i) => {
+            if (i.productoId !== productoId) return i;
+            return { ...i, stockDisponible, cantidad: Math.min(i.cantidad, stockDisponible) };
+          }),
+        });
       },
       limpiarCarrito: () => set({ items: [] }),
       calcularSubtotal: () =>
