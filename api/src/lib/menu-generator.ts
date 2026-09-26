@@ -28,7 +28,7 @@ export async function generarMenuMd(): Promise<void> {
     lineas.push(`## ${cat}`, '');
     const items = productos.filter((p) => p.categoria === cat);
     for (const p of items) {
-      const disponible = p.stockDisponible > 0 ? '✓ Disponible' : 'Sin stock';
+      const disponible = p.stockDisponible > 0 ? 'Disponible' : 'Sin stock';
       const encargo = p.requiereEncargo ? ' · Requiere encargo previo' : '';
       lineas.push(`### ${p.nombre}`);
       lineas.push(`- **Precio:** $${p.precio} MXN`);

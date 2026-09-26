@@ -85,7 +85,7 @@ function getSessionId(): string {
 export default function ChatWidget() {
   const [abierto, setAbierto] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([
-    { rol: 'assistant', texto: '¡Hola! Soy DulceBot 🍞 ¿En qué te puedo ayudar hoy?' },
+    { rol: 'assistant', texto: '¡Hola! Soy DulceBot, la asistente de Antojo de Yanet. ¿En qué te puedo ayudar?' },
   ]);
   const [input, setInput] = useState('');
   const [cargando, setCargando] = useState(false);

@@ -188,7 +188,7 @@ export default function HomePage() {
         <Typography variant="h6" component="h2" gutterBottom>
           ¿Necesitas un encargo especial?
         </Typography>
-        <Typography>Pasteles, roscas, cajitas… ¡pregúntale a Yanet en el chat de abajo a la derecha!</Typography>
+        <Typography>Pasteles, roscas, cajitas… ¡pregúntale a DulceBot en el chat de abajo a la derecha!</Typography>
       </Paper>
     </Stack>
   );
