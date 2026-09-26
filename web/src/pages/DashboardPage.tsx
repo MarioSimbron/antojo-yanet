@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Link as RouterLink, useLocation } from 'react-router-dom';
+import { Routes, Route, Link as RouterLink, Navigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl,
@@ -495,6 +495,20 @@ function Historial() {
 }
 
 /**
+ * Route wrapper that redirects to /dashboard if the current user's role is not allowed.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {{ roles: string[]; children: React.ReactNode }} props
+ * @returns {JSX.Element}
+ */
+function RoleGuard({ roles, children }: { roles: string[]; children: React.ReactNode }) {
+  const { usuario } = useAuthStore();
+  if (!roles.includes(usuario?.rol ?? '')) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
+/**
  * Staff dashboard shell: side navigation filtered by role and nested routes for active
  * orders (index), order history and reports (/dashboard/reportes).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
@@ -507,6 +521,13 @@ export default function DashboardPage() {
   usePushNotifications();
 
   const navItems = [
+    // MAESTRO_PANADERO: their default is mis-tareas; they also need pedidos to advance orders
+    {
+      to: '/dashboard/mis-tareas',
+      label: 'Mis Tareas',
+      icon: <AssignmentIcon />,
+      roles: ['MAESTRO_PANADERO'],
+    },
     {
       to: '/dashboard',
       label: 'Pedidos activos',
@@ -517,14 +538,19 @@ export default function DashboardPage() {
       to: '/dashboard/historial',
       label: 'Historial',
       icon: <HistoryIcon />,
-      roles: ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'],
+      roles: ['ADMIN', 'CAJERO', 'REPARTIDOR'],
     },
+    { to: '/dashboard/tareas', label: 'Tareas', icon: <AssignmentIcon />, roles: ['ADMIN'] },
+    { to: '/dashboard/mis-tareas', label: 'Mis Tareas', icon: <AssignmentIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/reportes', label: 'Reportes', icon: <BarChartIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/productos', label: 'Productos', icon: <StorefrontIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/empleados', label: 'Empleados', icon: <PeopleIcon />, roles: ['ADMIN'] },
-    { to: '/dashboard/tareas', label: 'Tareas', icon: <AssignmentIcon />, roles: ['ADMIN'] },
-    { to: '/dashboard/mis-tareas', label: 'Mis Tareas', icon: <AssignmentIcon />, roles: ['MAESTRO_PANADERO', 'ADMIN'] },
   ].filter((item) => item.roles.includes(usuario?.rol ?? ''));
+
+  // Deduplicate nav items by `to` (MAESTRO_PANADERO entry for mis-tareas is separate from ADMIN's)
+  const navItemsUniq = navItems.filter(
+    (item, idx, arr) => arr.findIndex((x) => x.to === item.to) === idx,
+  );
 
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
@@ -534,7 +560,7 @@ export default function DashboardPage() {
             <ListSubheader sx={{ bgcolor: 'transparent', fontWeight: 700 }}>Dashboard</ListSubheader>
           }
         >
-          {navItems.map((item) => (
+          {navItemsUniq.map((item) => (
             <ListItemButton
               key={item.to}
               component={RouterLink}
@@ -549,13 +575,36 @@ export default function DashboardPage() {
       </Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Routes>
-          <Route index element={<PedidosActivos />} />
+          {/* Default index: maestro lands on mis-tareas; everyone else on pedidos activos */}
+          <Route
+            index
+            element={
+              usuario?.rol === 'MAESTRO_PANADERO'
+                ? <Navigate to="/dashboard/mis-tareas" replace />
+                : <PedidosActivos />
+            }
+          />
           <Route path="historial" element={<Historial />} />
-          <Route path="reportes" element={<Reportes />} />
-          <Route path="productos" element={<ProductosPage />} />
-          <Route path="empleados" element={<EmpleadosPage />} />
-          <Route path="tareas" element={<TareasAdminPage />} />
-          <Route path="mis-tareas" element={<TareasMaestroPage />} />
+          <Route
+            path="reportes"
+            element={<RoleGuard roles={['ADMIN']}><Reportes /></RoleGuard>}
+          />
+          <Route
+            path="productos"
+            element={<RoleGuard roles={['ADMIN']}><ProductosPage /></RoleGuard>}
+          />
+          <Route
+            path="empleados"
+            element={<RoleGuard roles={['ADMIN']}><EmpleadosPage /></RoleGuard>}
+          />
+          <Route
+            path="tareas"
+            element={<RoleGuard roles={['ADMIN']}><TareasAdminPage /></RoleGuard>}
+          />
+          <Route
+            path="mis-tareas"
+            element={<RoleGuard roles={['ADMIN', 'MAESTRO_PANADERO']}><TareasMaestroPage /></RoleGuard>}
+          />
         </Routes>
       </Box>
     </Stack>
