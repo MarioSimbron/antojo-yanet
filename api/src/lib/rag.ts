@@ -37,8 +37,10 @@ export async function cargarDocumentos(): Promise<Chunk[]> {
   const nuevosChunks: Chunk[] = [];
   for (const archivo of archivos.filter((f) => f.endsWith('.md'))) {
     const contenido = await fs.readFile(path.join(docsDir, archivo), 'utf-8');
-    // Split by sections (#, ## or ### headings)
-    const secciones = contenido.split(/\n(?=#{1,3} )/);
+    // Split only at h1/h2 boundaries so each category section stays together with
+    // all its products. Splitting at h3 would create tiny per-product chunks that
+    // lose the parent category name, making keyword scoring unreliable.
+    const secciones = contenido.split(/\n(?=#{1,2} )/);
     for (const seccion of secciones) {
       if (seccion.trim().length > 20) {
         nuevosChunks.push({ fuente: archivo, texto: seccion.trim() });
