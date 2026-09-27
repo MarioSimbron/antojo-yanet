@@ -9,6 +9,7 @@ import { verificarOwnership } from './pedido.service.js';
 import { PrismaClient } from '@prisma/client';
 import { registrarEmitter } from './pedido.service.js';
 import { registrarNotificacionEmitter } from '../lib/push.js';
+import { registrarListaCompraEmitter } from './listaCompra.service.js';
 
 const prisma = new PrismaClient();
 
@@ -84,6 +85,11 @@ export function iniciarSocketIO(server: http.Server): IOServer {
   // Register the notification emitter so push.ts can broadcast without importing this module
   registrarNotificacionEmitter((room, data) => {
     io.to(room).emit('notificacion:nueva', data);
+  });
+
+  // Register the purchase-list emitter for real-time list updates
+  registrarListaCompraEmitter((evento, room, data) => {
+    io.to(room).emit(evento, data);
   });
 
   return io;

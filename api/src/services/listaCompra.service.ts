@@ -2,12 +2,36 @@
  * Purchase-list service: staff members add raw-material purchase requests; admin
  * tracks and fulfills them. When an item is marked SURTIDO, the linked ingredient's
  * stock is automatically incremented (Feature C + Feature D / US-D5).
+ * Real-time updates are broadcast via Socket.IO using the registered emitter so all
+ * connected staff see changes instantly without polling.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 import { PrismaClient, EstatusCompra, PrioridadCompra } from '@prisma/client';
 import { GraphQLError } from 'graphql';
 import { notificarRol, notificarUsuario } from '../lib/push.js';
 import { reponerInsumo } from './inventario.service.js';
+
+/** Emitter registered by socket.service.ts to broadcast list changes. */
+let emitirFn: ((evento: string, room: string, data: unknown) => void) | null = null;
+
+/**
+ * Registers the Socket.IO emitter so the service can broadcast real-time events.
+ * Called once during server startup from socket.service.ts.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {(evento: string, room: string, data: unknown) => void} fn - Emitter function.
+ */
+export function registrarListaCompraEmitter(
+  fn: (evento: string, room: string, data: unknown) => void,
+) {
+  emitirFn = fn;
+}
+
+/** Broadcasts `listaCompra:actualizada` to all staff roles. */
+function emitirActualizada() {
+  for (const rol of ['ADMIN', 'MAESTRO_PANADERO', 'CAJERO']) {
+    emitirFn?.('listaCompra:actualizada', `rol:${rol}`, {});
+  }
+}
 
 const prisma = new PrismaClient();
 
@@ -71,6 +95,7 @@ export async function crearItemCompra(
     url: '/dashboard/compras',
   });
 
+  emitirActualizada();
   return item;
 }
 
@@ -124,5 +149,6 @@ export async function actualizarItemCompra(id: number, estatus: string) {
     }
   }
 
+  emitirActualizada();
   return updated;
 }

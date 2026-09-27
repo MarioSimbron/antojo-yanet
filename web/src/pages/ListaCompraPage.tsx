@@ -6,8 +6,9 @@
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The purchase-list management page.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
+import { useSocket } from '../hooks/useSocket';
 import {
   Alert,
   Box,
@@ -128,6 +129,7 @@ const ESTATUS_LABEL: Record<string, string> = {
 export default function ListaCompraPage() {
   const { usuario } = useAuthStore();
   const esAdmin = usuario?.rol === 'ADMIN';
+  const { onListaCompraActualizada } = useSocket();
 
   const { data, loading, refetch } = useQuery<{ listaCompras: ItemCompra[] }>(LISTA_COMPRAS_QUERY, {
     fetchPolicy: 'cache-and-network',
@@ -139,6 +141,11 @@ export default function ListaCompraPage() {
     onCompleted: () => { refetch(); resetForm(); },
   });
   const [actualizarItem] = useMutation(ACTUALIZAR_ITEM, { onCompleted: () => refetch() });
+
+  // Refresh the list whenever another session creates or updates a purchase item.
+  useEffect(() => {
+    return onListaCompraActualizada(() => { void refetch(); });
+  }, [onListaCompraActualizada, refetch]);
 
   const [crearInsumo, { loading: creandoInsumo }] = useMutation<{
     crearInsumo: Insumo;

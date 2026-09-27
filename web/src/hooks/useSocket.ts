@@ -16,7 +16,7 @@
  * IDs as needed (e.g. from a list page); each is remembered and re-joined on reconnect.
  *
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- * @returns {{ unirseAPedido, onEstadoActualizado, onRepartidorAsignado, onNotificacion }}
+ * @returns {{ unirseAPedido, onEstadoActualizado, onRepartidorAsignado, onNotificacion, onListaCompraActualizada }}
  */
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -42,10 +42,11 @@ type NotificacionPayload = {
  * they can be re-joined on each new connection. Active event callbacks are persisted
  * in refs and re-registered on every new socket instance.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- * @returns {{ unirseAPedido: Function; onEstadoActualizado: Function; onRepartidorAsignado: Function }}
+ * @returns {{ unirseAPedido: Function; onEstadoActualizado: Function; onRepartidorAsignado: Function; onListaCompraActualizada: Function }}
  *   - unirseAPedido(pedidoId): emits `join_pedido` once per unique ID; re-emitted on reconnect.
  *   - onEstadoActualizado(callback): subscribes to `pedido:estado_actualizado`; returns unsubscribe fn.
  *   - onRepartidorAsignado(callback): subscribes to `pedido:asignado_repartidor`; returns unsubscribe fn.
+ *   - onListaCompraActualizada(callback): subscribes to `listaCompra:actualizada`; returns unsubscribe fn.
  */
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
@@ -57,6 +58,7 @@ export function useSocket() {
   const estadoCallbackRef = useRef<((data: EstadoPayload) => void) | null>(null);
   const repartidorCallbackRef = useRef<((data: RepartidorPayload) => void) | null>(null);
   const notificacionCallbackRef = useRef<((data: NotificacionPayload) => void) | null>(null);
+  const listaCompraCallbackRef = useRef<(() => void) | null>(null);
 
   const { accessToken } = useAuthStore();
   const { guestToken } = useGuestStore();
@@ -86,6 +88,9 @@ export function useSocket() {
     }
     if (notificacionCallbackRef.current) {
       socket.on('notificacion:nueva', notificacionCallbackRef.current);
+    }
+    if (listaCompraCallbackRef.current) {
+      socket.on('listaCompra:actualizada', listaCompraCallbackRef.current);
     }
 
     socketRef.current = socket;
@@ -162,5 +167,25 @@ export function useSocket() {
     [],
   );
 
-  return { unirseAPedido, onEstadoActualizado, onRepartidorAsignado, onNotificacion };
+  /**
+   * Subscribes to the `listaCompra:actualizada` event broadcast when any purchase-list
+   * item is created or its status changes. The callback is stored in a ref so it
+   * survives socket recreations; the returned function unsubscribes.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   * @param {() => void} callback - Handler called on each event.
+   * @returns {() => void} Unsubscribe function.
+   */
+  const onListaCompraActualizada = useCallback(
+    (callback: () => void) => {
+      listaCompraCallbackRef.current = callback;
+      socketRef.current?.on('listaCompra:actualizada', callback);
+      return () => {
+        listaCompraCallbackRef.current = null;
+        socketRef.current?.off('listaCompra:actualizada', callback);
+      };
+    },
+    [],
+  );
+
+  return { unirseAPedido, onEstadoActualizado, onRepartidorAsignado, onNotificacion, onListaCompraActualizada };
 }
