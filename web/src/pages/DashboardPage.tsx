@@ -142,7 +142,7 @@ function PedidosActivos() {
   const [repartidorPorPedido, setRepartidorPorPedido] = useState<Record<number, number>>({});
   const [cancelConfirm, setCancelConfirm] = useState<number | null>(null);
 
-  const puedeAsignar = usuario?.rol === 'ADMIN' || usuario?.rol === 'CAJERO';
+  const puedeAsignar = usuario?.rol === 'ADMIN';
 
   // cache-and-network: show cached data immediately but always re-fetch so new orders
   // placed after the last visit appear without a manual page refresh.
