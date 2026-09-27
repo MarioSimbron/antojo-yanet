@@ -2,6 +2,7 @@ import { Outlet, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { AppBar, Badge, Box, Button, Container, IconButton, Toolbar, Typography } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { useApolloClient } from '@apollo/client';
 import { useAuthStore } from '../store/auth.store';
 import { useCarritoStore } from '../store/carrito.store';
 import { useGuestStore } from '../store/guest.store';
@@ -24,16 +25,19 @@ export default function Layout() {
   const { guestToken } = useGuestStore();
   const items = useCarritoStore((s) => s.items);
   const navigate = useNavigate();
+  const apolloClient = useApolloClient();
   const totalItems = items.reduce((acc, i) => acc + i.cantidad, 0);
   const mostrarCampana = Boolean(usuario || guestToken);
 
   /**
-   * Logs the user out and returns to the home page.
+   * Logs the user out, clears the Apollo in-memory cache so the next user
+   * never sees stale data from the previous session, and returns to the home page.
    * @author Mario Simbron Gonzalez <simbron420@gmail.com>
    * @returns {void}
    */
   const handleLogout = () => {
     logout();
+    void apolloClient.clearStore();
     navigate('/');
   };
 
