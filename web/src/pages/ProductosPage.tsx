@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { useQuery, useMutation, gql } from '@apollo/client';
+import { useQuery, useLazyQuery, useMutation, gql } from '@apollo/client';
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, Divider, FormControlLabel, Grid, InputAdornment, Snackbar, Stack,
+  DialogTitle, Divider, FormControl, FormControlLabel, Grid, IconButton, InputAdornment,
+  InputLabel, List, ListItem, ListItemText, MenuItem, Select, Snackbar, Stack,
   Switch, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -11,6 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
 import UploadIcon from '@mui/icons-material/Upload';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace('/graphql', '') ?? 'http://localhost:4000';
 
@@ -57,6 +59,39 @@ const ELIMINAR_PRODUCTO = gql`
   }
 `;
 
+/**
+ * GraphQL query to fetch all registered raw-material ingredients.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const INSUMOS = gql`
+  query InsumosParaReceta {
+    insumos { id nombre unidad }
+  }
+`;
+
+/**
+ * GraphQL query to fetch the Bill-of-Materials (recipe) for one product.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const RECETA = gql`
+  query RecetaProducto($productoId: Int!) {
+    receta(productoId: $productoId) {
+      id insumoId cantidadPorUnidad
+      insumo { id nombre unidad }
+    }
+  }
+`;
+
+/**
+ * GraphQL mutation that replaces all recipe items for a product atomically.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const GUARDAR_RECETA = gql`
+  mutation GuardarReceta($productoId: Int!, $items: [RecetaItemInput!]!) {
+    guardarReceta(productoId: $productoId, items: $items)
+  }
+`;
+
 type Producto = {
   id: number;
   sku: string;
@@ -86,6 +121,16 @@ type FormState = {
   temporadaFin: string;
 };
 
+/** A recipe row as shown in the "Editar receta" dialog. */
+type RecetaItemRow = {
+  insumoId: number;
+  cantidadPorUnidad: number;
+  insumoNombre: string;
+  insumoUnidad: string;
+};
+
+type InsumoGql = { id: number; nombre: string; unidad: string };
+
 const EMPTY_FORM: FormState = {
   sku: '', nombre: '', descripcion: '', precio: '', categoria: '',
   imagenUrl: '', activo: true, stockDisponible: '0',
@@ -95,12 +140,14 @@ const EMPTY_FORM: FormState = {
 /**
  * Admin page for managing the product catalog. Shows all products (active and inactive)
  * in a table. Provides a create/edit dialog with image upload, and a delete confirmation.
- * When a product requires an encargo, the dialog highlights that section so the admin
- * can fill in the description with requirements and lead-time information.
+ * Also includes an "Editar receta" dialog (US-D1) where ADMIN configures the Bill-of-
+ * Materials (insumos + quantities) for each product; the recipe is used to deduct raw
+ * material stock automatically when a production task reaches EN_PROCESO.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The products management page.
  */
 export default function ProductosPage() {
+  // ── Product dialog state ───────────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Producto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
@@ -111,13 +158,29 @@ export default function ProductosPage() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Recipe dialog state (US-D1) ────────────────────────────────────────────
+  const [recetaDialogOpen, setRecetaDialogOpen] = useState(false);
+  const [recetaTarget, setRecetaTarget] = useState<Producto | null>(null);
+  const [recetaItems, setRecetaItems] = useState<RecetaItemRow[]>([]);
+  const [newInsumoId, setNewInsumoId] = useState<number | ''>('');
+  const [newCantidad, setNewCantidad] = useState('');
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
   const { data, loading, error, refetch } = useQuery(PRODUCTOS, { fetchPolicy: 'cache-and-network' });
+  const { data: insumosData } = useQuery<{ insumos: InsumoGql[] }>(INSUMOS);
+  const [fetchReceta, { loading: loadingReceta }] = useLazyQuery(RECETA, { fetchPolicy: 'network-only' });
+
   const [crearProducto, { loading: creating }] = useMutation(CREAR_PRODUCTO);
   const [actualizarProducto, { loading: updating }] = useMutation(ACTUALIZAR_PRODUCTO);
   const [eliminarProducto, { loading: deleting }] = useMutation(ELIMINAR_PRODUCTO);
+  const [guardarReceta, { loading: savingReceta }] = useMutation(GUARDAR_RECETA);
+
+  const insumos: InsumoGql[] = insumosData?.insumos ?? [];
 
   const showSnack = (msg: string, severity: 'success' | 'error') =>
     setSnackbar({ open: true, msg, severity });
+
+  // ── Product dialog handlers ────────────────────────────────────────────────
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -207,6 +270,90 @@ export default function ProductosPage() {
     }
   };
 
+  // ── Recipe dialog handlers (US-D1) ─────────────────────────────────────────
+
+  /**
+   * Opens the recipe dialog for the given product and loads its current BOM.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   * @param {Producto} p - The product whose recipe will be edited.
+   */
+  const handleOpenReceta = async (p: Producto) => {
+    setRecetaTarget(p);
+    setRecetaItems([]);
+    setNewInsumoId('');
+    setNewCantidad('');
+    setRecetaDialogOpen(true);
+    const { data: recetaData } = await fetchReceta({ variables: { productoId: p.id } });
+    if (recetaData?.receta) {
+      setRecetaItems(
+        (recetaData.receta as { insumoId: number; cantidadPorUnidad: number; insumo: InsumoGql }[])
+          .map((r) => ({
+            insumoId: r.insumoId,
+            cantidadPorUnidad: r.cantidadPorUnidad,
+            insumoNombre: r.insumo.nombre,
+            insumoUnidad: r.insumo.unidad,
+          })),
+      );
+    }
+  };
+
+  /** Closes and resets the recipe dialog. */
+  const handleCloseReceta = () => {
+    setRecetaDialogOpen(false);
+    setRecetaTarget(null);
+    setRecetaItems([]);
+    setNewInsumoId('');
+    setNewCantidad('');
+  };
+
+  /**
+   * Adds (or replaces) an ingredient row in the working recipe list.
+   * If the same insumo already exists it is updated in place.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   */
+  const handleAddRecetaItem = () => {
+    if (newInsumoId === '' || !newCantidad || parseFloat(newCantidad) <= 0) return;
+    const insumo = insumos.find((i) => i.id === newInsumoId);
+    if (!insumo) return;
+    setRecetaItems((prev) => [
+      ...prev.filter((r) => r.insumoId !== newInsumoId),
+      {
+        insumoId: newInsumoId as number,
+        cantidadPorUnidad: parseFloat(newCantidad),
+        insumoNombre: insumo.nombre,
+        insumoUnidad: insumo.unidad,
+      },
+    ]);
+    setNewInsumoId('');
+    setNewCantidad('');
+  };
+
+  /**
+   * Persists the working recipe list to the server via guardarReceta.
+   * The mutation replaces all RecetaItems for the product atomically.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   */
+  const handleSaveReceta = async () => {
+    if (!recetaTarget) return;
+    try {
+      await guardarReceta({
+        variables: {
+          productoId: recetaTarget.id,
+          items: recetaItems.map((r) => ({
+            insumoId: r.insumoId,
+            cantidadPorUnidad: r.cantidadPorUnidad,
+          })),
+        },
+      });
+      showSnack('Receta guardada correctamente.', 'success');
+      handleCloseReceta();
+    } catch (e: unknown) {
+      showSnack(e instanceof Error ? e.message : 'No se pudo guardar la receta.', 'error');
+    }
+  };
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+
   const productos: Producto[] = data?.productos ?? [];
   const isSaving = creating || updating;
   const canSave =
@@ -267,7 +414,10 @@ export default function ProductosPage() {
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                  <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
+                    <Button size="small" startIcon={<MenuBookIcon />} onClick={() => void handleOpenReceta(p)}>
+                      Receta
+                    </Button>
                     <Button size="small" startIcon={<EditIcon />} onClick={() => handleOpen(p)}>
                       Editar
                     </Button>
@@ -531,6 +681,119 @@ export default function ProductosPage() {
           <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancelar</Button>
           <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Eliminando...' : 'Eliminar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Editar receta dialog (US-D1) ─────────────────────────────────── */}
+      <Dialog open={recetaDialogOpen} onClose={handleCloseReceta} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <MenuBookIcon fontSize="small" />
+          {recetaTarget ? `Receta — ${recetaTarget.nombre}` : 'Receta'}
+        </DialogTitle>
+        <DialogContent dividers>
+          {loadingReceta ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <Stack spacing={3}>
+              {/* Current ingredients */}
+              <Box>
+                <Typography variant="overline" color="text.secondary">
+                  Ingredientes actuales
+                </Typography>
+                {recetaItems.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Sin ingredientes. Agrega al menos uno abajo.
+                  </Typography>
+                ) : (
+                  <List dense disablePadding sx={{ mt: 0.5 }}>
+                    {recetaItems.map((item) => (
+                      <ListItem
+                        key={item.insumoId}
+                        disableGutters
+                        secondaryAction={
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            color="error"
+                            onClick={() => setRecetaItems((prev) => prev.filter((r) => r.insumoId !== item.insumoId))}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        }
+                      >
+                        <ListItemText
+                          primary={item.insumoNombre}
+                          secondary={`${item.cantidadPorUnidad} ${item.insumoUnidad} por unidad producida`}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Box>
+
+              <Divider />
+
+              {/* Add ingredient row */}
+              <Box>
+                <Typography variant="overline" color="text.secondary">
+                  Agregar ingrediente
+                </Typography>
+                {insumos.length === 0 ? (
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    No hay materias primas registradas. Agrégalas primero en la página de Inventario.
+                  </Alert>
+                ) : (
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'flex-start' }}>
+                    <FormControl size="small" sx={{ flex: 2 }}>
+                      <InputLabel>Insumo</InputLabel>
+                      <Select
+                        label="Insumo"
+                        value={newInsumoId}
+                        onChange={(e) => setNewInsumoId(e.target.value as number | '')}
+                      >
+                        {insumos.map((ins) => (
+                          <MenuItem key={ins.id} value={ins.id}>
+                            {ins.nombre} <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>({ins.unidad})</Typography>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      label="Cantidad"
+                      size="small"
+                      type="number"
+                      value={newCantidad}
+                      onChange={(e) => setNewCantidad(e.target.value)}
+                      sx={{ flex: 1 }}
+                      slotProps={{ htmlInput: { min: 0, step: 0.001 } }}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="medium"
+                      startIcon={<AddIcon />}
+                      onClick={handleAddRecetaItem}
+                      disabled={newInsumoId === '' || !newCantidad || parseFloat(newCantidad) <= 0}
+                      sx={{ whiteSpace: 'nowrap', height: 40 }}
+                    >
+                      Agregar
+                    </Button>
+                  </Stack>
+                )}
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={handleCloseReceta} disabled={savingReceta}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleSaveReceta()}
+            disabled={savingReceta || loadingReceta}
+          >
+            {savingReceta ? 'Guardando...' : 'Guardar receta'}
           </Button>
         </DialogActions>
       </Dialog>
