@@ -4,6 +4,8 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAuthStore } from '../store/auth.store';
 import { useCarritoStore } from '../store/carrito.store';
+import { useGuestStore } from '../store/guest.store';
+import NotificationCenter from './NotificationCenter';
 
 /**
  * Roles allowed to see the staff dashboard link.
@@ -19,9 +21,11 @@ const ROLES_STAFF = ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'];
  */
 export default function Layout() {
   const { usuario, logout } = useAuthStore();
+  const { guestToken } = useGuestStore();
   const items = useCarritoStore((s) => s.items);
   const navigate = useNavigate();
   const totalItems = items.reduce((acc, i) => acc + i.cantidad, 0);
+  const mostrarCampana = Boolean(usuario || guestToken);
 
   /**
    * Logs the user out and returns to the home page.
@@ -65,6 +69,7 @@ export default function Layout() {
                 Dashboard
               </Button>
             )}
+            {mostrarCampana && <NotificationCenter />}
             <IconButton color="inherit" component={RouterLink} to="/checkout" aria-label="Carrito">
               <Badge badgeContent={totalItems} color="secondary">
                 <ShoppingCartIcon />

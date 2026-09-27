@@ -1,15 +1,17 @@
 /**
  * Maestro panadero page: shows pending/in-progress production tasks and allows
- * the user to transition them through EN_PROCESO → COMPLETADA.
+ * the user to transition them through EN_PROCESO → COMPLETADA. Also shows their
+ * own task proposals with their approval status (Feature B).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 import { useState } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
-  Dialog, DialogActions, DialogContent, DialogTitle, Snackbar,
-  Stack, TextField, Typography,
+  Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel,
+  MenuItem, Select, Snackbar, Stack, TextField, Typography,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
@@ -22,22 +24,38 @@ const MIS_TAREAS_QUERY = gql`
   }
 `;
 
+const PRODUCTOS_QUERY = gql`
+  query ProductosParaPropuesta {
+    productos { id nombre categoria activo }
+  }
+`;
+
 const ACTUALIZAR_TAREA = gql`
   mutation ActualizarTarea($id: Int!, $input: ActualizarTareaInput!) {
     actualizarTarea(id: $id, input: $input) { id estatus cantidadProducida }
   }
 `;
 
-const ESTATUS_COLOR: Record<string, 'warning' | 'info' | 'success'> = {
+const CREAR_TAREA = gql`
+  mutation CrearPropuesta($input: CrearTareaInput!) {
+    crearTarea(input: $input) { id }
+  }
+`;
+
+const ESTATUS_COLOR: Record<string, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+  PROPUESTA: 'info',
   PENDIENTE: 'warning',
   EN_PROCESO: 'info',
   COMPLETADA: 'success',
+  RECHAZADA: 'error',
 };
 
 const ESTATUS_LABEL: Record<string, string> = {
+  PROPUESTA: 'Esperando aprobación',
   PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En proceso',
   COMPLETADA: 'Completada',
+  RECHAZADA: 'Rechazada',
 };
 
 interface Tarea {
@@ -57,17 +75,22 @@ function fmtFecha(iso: string) {
 }
 
 /**
- * Production tasks page for maestro panadero: shows assigned tasks and lets them
- * mark a task as in-progress or complete with a produced quantity.
+ * Production tasks page for maestro panadero: shows assigned tasks, lets them mark
+ * tasks as in-progress or complete, and allows proposing new tasks (Feature B).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element}
  */
 export default function TareasMaestroPage() {
   const [completarDialog, setCompletarDialog] = useState<Tarea | null>(null);
   const [cantidadProducida, setCantidadProducida] = useState('');
+  const [propuestaOpen, setPropuestaOpen] = useState(false);
+  const [propProductoId, setPropProductoId] = useState<number | ''>('');
+  const [propCantidad, setPropCantidad] = useState('');
+  const [propNotas, setPropNotas] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, msg: '', ok: true });
 
   const { data, loading, error, refetch } = useQuery(MIS_TAREAS_QUERY, { fetchPolicy: 'cache-and-network' });
+  const { data: prodData } = useQuery(PRODUCTOS_QUERY, { fetchPolicy: 'cache-and-network' });
 
   const [actualizarTarea, { loading: actualizando }] = useMutation(ACTUALIZAR_TAREA, {
     onCompleted: () => {
@@ -78,6 +101,25 @@ export default function TareasMaestroPage() {
     },
     onError: (e) => setSnackbar({ open: true, msg: e.message, ok: false }),
   });
+
+  const [crearTarea, { loading: proponiendo }] = useMutation(CREAR_TAREA, {
+    onCompleted: () => {
+      setPropuestaOpen(false);
+      setPropProductoId(''); setPropCantidad(''); setPropNotas('');
+      setSnackbar({ open: true, msg: 'Propuesta enviada al administrador', ok: true });
+      void refetch();
+    },
+    onError: (e) => setSnackbar({ open: true, msg: e.message, ok: false }),
+  });
+
+  const handleProponerTarea = () => {
+    if (!propProductoId || !propCantidad || Number(propCantidad) < 1) return;
+    void crearTarea({
+      variables: { input: { productoId: Number(propProductoId), cantidadSolicitada: Number(propCantidad), notas: propNotas || undefined } },
+    });
+  };
+
+  const productos = (prodData?.productos ?? []) as { id: number; nombre: string; categoria: string; activo: boolean }[];
 
   const iniciarTarea = (id: number) => {
     void actualizarTarea({ variables: { id, input: { estatus: 'EN_PROCESO' } } });
@@ -97,9 +139,14 @@ export default function TareasMaestroPage() {
 
   return (
     <Box>
-      <Typography variant="h5" component="h1" sx={{ mb: 3 }}>
-        Mis Tareas de Producción
-      </Typography>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" component="h1">
+          Mis Tareas de Producción
+        </Typography>
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setPropuestaOpen(true)}>
+          Proponer tarea
+        </Button>
+      </Stack>
 
       {loading && <CircularProgress />}
       {error && <Alert severity="error">Error al cargar tareas.</Alert>}
@@ -180,6 +227,52 @@ export default function TareasMaestroPage() {
           </Card>
         ))}
       </Stack>
+
+      {/* Proponer tarea dialog (Feature B) */}
+      <Dialog open={propuestaOpen} onClose={() => setPropuestaOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Proponer nueva tarea de producción</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Producto</InputLabel>
+              <Select
+                value={propProductoId}
+                label="Producto"
+                onChange={(e) => setPropProductoId(e.target.value as number)}
+              >
+                {productos.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>{p.nombre} — {p.categoria}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Cantidad a producir"
+              type="number"
+              size="small"
+              value={propCantidad}
+              onChange={(e) => setPropCantidad(e.target.value)}
+            />
+            <TextField
+              label="Notas / justificación (opcional)"
+              multiline
+              rows={3}
+              size="small"
+              value={propNotas}
+              onChange={(e) => setPropNotas(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPropuestaOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleProponerTarea}
+            disabled={proponiendo || !propProductoId || !propCantidad}
+          >
+            Enviar propuesta
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Completar dialog */}
       <Dialog open={!!completarDialog} onClose={() => setCompletarDialog(null)} maxWidth="xs" fullWidth>

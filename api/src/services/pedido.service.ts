@@ -8,7 +8,7 @@ import { GraphQLError } from 'graphql';
 import { calcularTotales } from './calcular-totales.js';
 import { puedeTransicionar } from './pedido-state-machine.js';
 import { generarMenuMd } from '../lib/menu-generator.js';
-import { notificarRol, notificarUsuario } from '../lib/push.js';
+import { notificarRol, notificarUsuario, notificarGuest } from '../lib/push.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
@@ -235,32 +235,50 @@ export async function crearPedido(
     void notificarRol('ADMIN', {
       titulo: '🛒 Nuevo pedido recibido',
       cuerpo: `Pedido #${pedido.id} de ${pedido.nombreCliente}`,
-      url: `/dashboard/pedidos/${pedido.id}`,
+      url: '/dashboard',
     });
     void notificarRol('CAJERO', {
       titulo: '🛒 Nuevo pedido recibido',
       cuerpo: `Pedido #${pedido.id} de ${pedido.nombreCliente}`,
-      url: `/dashboard/pedidos/${pedido.id}`,
+      url: '/dashboard',
     });
 
-    // Detect products that hit zero stock and notify
+    // US-C1: Notify buyer that the order was received
+    if (pedido.usuarioId) {
+      void notificarUsuario(pedido.usuarioId, {
+        titulo: `✅ Pedido #${pedido.id} recibido`,
+        cuerpo: 'Lo estamos revisando. Te avisaremos cuando esté en preparación.',
+        url: `/seguimiento/${pedido.id}`,
+      });
+    } else if (pedido.guestToken) {
+      void notificarGuest(pedido.guestToken, pedido.id, {
+        titulo: `✅ Pedido #${pedido.id} recibido`,
+        cuerpo: 'Lo estamos revisando. Te avisaremos cuando esté en preparación.',
+        url: `/seguimiento/${pedido.id}`,
+      });
+    }
+
+    // US-CAJ3: Notify cashier when an encargo requires payment confirmation
+    if (pedido.estatus === 'ESPERANDO_CONFIRMACION') {
+      void notificarRol('CAJERO', {
+        titulo: `💳 Encargo #${pedido.id} pendiente de confirmación`,
+        cuerpo: `${pedido.nombreCliente} realizó un encargo que requiere confirmar depósito.`,
+        url: '/dashboard',
+      });
+    }
+
+    // Detect products with stock at or below 10 units and notify admin (US-A2)
     for (const item of itemsConDatos) {
       if (!item.esEncargo) {
         const prod = await tx.producto.findUnique({
           where: { id: item.productoId },
           select: { stockDisponible: true, nombre: true },
         });
-        if (prod && prod.stockDisponible === 0) {
-          emitir('stock:agotado', 'rol:ADMIN', { productoId: item.productoId, nombre: prod.nombre });
-          emitir('stock:agotado', 'rol:CAJERO', { productoId: item.productoId, nombre: prod.nombre });
+        if (prod && prod.stockDisponible <= 10) {
+          emitir('stock:bajo', 'rol:ADMIN', { productoId: item.productoId, nombre: prod.nombre, stock: prod.stockDisponible });
           void notificarRol('ADMIN', {
-            titulo: '⚠️ Stock agotado',
-            cuerpo: `Se acabó "${prod.nombre}". ¿Crear tarea de producción?`,
-            url: '/dashboard/tareas',
-          });
-          void notificarRol('CAJERO', {
-            titulo: '⚠️ Stock agotado',
-            cuerpo: `Se acabó "${prod.nombre}"`,
+            titulo: '⚠️ Stock bajo',
+            cuerpo: `"${prod.nombre}" tiene solo ${prod.stockDisponible} piezas disponibles. ¿Crear tarea de producción?`,
             url: '/dashboard/tareas',
           });
         }
@@ -361,24 +379,24 @@ export async function actualizarEstatus(
     timestamp: new Date().toISOString(),
   });
 
-  // Role-specific push notifications for key status transitions
+  // Role-specific notifications for key status transitions
   if (nuevoEstatus === 'LISTO') {
     void notificarRol('CAJERO', {
-      titulo: '✅ Pedido listo',
-      cuerpo: `Pedido #${pedidoId} está listo para entregar.`,
-      url: `/dashboard`,
+      titulo: `📦 Pedido #${pedidoId} listo`,
+      cuerpo: `Pedido #${pedidoId} está listo para ${updated.tipoEntrega === 'MOSTRADOR' ? 'retiro en mostrador' : 'enviar al repartidor'}.`,
+      url: '/dashboard',
     });
   }
   if (nuevoEstatus === 'CANCELADO' && updated.usuarioId) {
     void notificarUsuario(updated.usuarioId, {
-      titulo: '❌ Pedido cancelado',
+      titulo: `❌ Pedido #${pedidoId} cancelado`,
       cuerpo: `Tu pedido #${pedidoId} fue cancelado.`,
-      url: `/mis-pedidos`,
+      url: `/seguimiento/${pedidoId}`,
     });
   }
   if (nuevoEstatus === 'EN_CAMINO' && updated.usuarioId) {
     void notificarUsuario(updated.usuarioId, {
-      titulo: '🚚 Tu pedido va en camino',
+      titulo: `🚚 Tu pedido #${pedidoId} va en camino`,
       cuerpo: `El repartidor ya salió con tu pedido #${pedidoId}.`,
       url: `/seguimiento/${pedidoId}`,
     });
@@ -386,9 +404,9 @@ export async function actualizarEstatus(
   if (nuevoEstatus === 'ENTREGADO') {
     if (updated.usuarioId) {
       void notificarUsuario(updated.usuarioId, {
-        titulo: '🎉 Pedido entregado',
+        titulo: `🎉 Pedido #${pedidoId} entregado`,
         cuerpo: `¡Tu pedido #${pedidoId} fue entregado! Gracias por tu compra.`,
-        url: `/mis-pedidos`,
+        url: `/seguimiento/${pedidoId}`,
       });
     }
     void notificarRol('ADMIN', {
@@ -396,6 +414,81 @@ export async function actualizarEstatus(
       cuerpo: `Pedido #${pedidoId} fue entregado exitosamente.`,
       url: '/dashboard',
     });
+  }
+
+  // US-C2: Notify buyer when encargo moves to ESPERANDO_CONFIRMACION
+  if (nuevoEstatus === 'ESPERANDO_CONFIRMACION') {
+    if (updated.usuarioId) {
+      void notificarUsuario(updated.usuarioId, {
+        titulo: `⏳ Tu encargo #${pedidoId} requiere confirmación`,
+        cuerpo: 'El equipo revisará tu depósito para confirmar el encargo.',
+        url: `/seguimiento/${pedidoId}`,
+      });
+    } else if (updated.guestToken) {
+      void notificarGuest(updated.guestToken, pedidoId, {
+        titulo: `⏳ Tu encargo #${pedidoId} requiere confirmación`,
+        cuerpo: 'El equipo revisará tu depósito para confirmar el encargo.',
+        url: `/seguimiento/${pedidoId}`,
+      });
+    }
+  }
+
+  // US-C3: Notify buyer when kitchen starts preparing
+  if (nuevoEstatus === 'EN_PREPARACION') {
+    if (updated.usuarioId) {
+      void notificarUsuario(updated.usuarioId, {
+        titulo: `👨‍🍳 Preparando tu pedido #${pedidoId}`,
+        cuerpo: 'El maestro panadero ya está trabajando en tu pedido.',
+        url: `/seguimiento/${pedidoId}`,
+      });
+    } else if (updated.guestToken) {
+      void notificarGuest(updated.guestToken, pedidoId, {
+        titulo: `👨‍🍳 Preparando tu pedido #${pedidoId}`,
+        cuerpo: 'El maestro panadero ya está trabajando en tu pedido.',
+        url: `/seguimiento/${pedidoId}`,
+      });
+    }
+  }
+
+  // US-C4: Notify buyer when order is ready (text differs by delivery type)
+  if (nuevoEstatus === 'LISTO') {
+    const esMostrador = updated.tipoEntrega === 'MOSTRADOR';
+    const tituloBuyer = esMostrador
+      ? `🛍️ Tu pedido #${pedidoId} está listo para recoger`
+      : `🛍️ Tu pedido #${pedidoId} está listo y pronto saldrá`;
+    const cuerpoBuyer = esMostrador
+      ? '¡Pasa a recogerlo cuando quieras!'
+      : 'Pronto lo asignaremos a un repartidor.';
+    if (updated.usuarioId) {
+      void notificarUsuario(updated.usuarioId, { titulo: tituloBuyer, cuerpo: cuerpoBuyer, url: `/seguimiento/${pedidoId}` });
+    } else if (updated.guestToken) {
+      void notificarGuest(updated.guestToken, pedidoId, { titulo: tituloBuyer, cuerpo: cuerpoBuyer, url: `/seguimiento/${pedidoId}` });
+    }
+  }
+
+  // Guest notifications for already-implemented statuses (auth users handled above)
+  if (!updated.usuarioId && updated.guestToken) {
+    if (nuevoEstatus === 'CANCELADO') {
+      void notificarGuest(updated.guestToken, pedidoId, {
+        titulo: `❌ Pedido #${pedidoId} cancelado`,
+        cuerpo: `Tu pedido #${pedidoId} fue cancelado.`,
+        url: `/seguimiento/${pedidoId}`,
+      });
+    }
+    if (nuevoEstatus === 'EN_CAMINO') {
+      void notificarGuest(updated.guestToken, pedidoId, {
+        titulo: `🚚 Tu pedido #${pedidoId} va en camino`,
+        cuerpo: `El repartidor ya salió con tu pedido #${pedidoId}.`,
+        url: `/seguimiento/${pedidoId}`,
+      });
+    }
+    if (nuevoEstatus === 'ENTREGADO') {
+      void notificarGuest(updated.guestToken, pedidoId, {
+        titulo: `🎉 Pedido #${pedidoId} entregado`,
+        cuerpo: `¡Tu pedido #${pedidoId} fue entregado! Gracias por tu compra.`,
+        url: `/seguimiento/${pedidoId}`,
+      });
+    }
   }
 
   return updated;
@@ -441,7 +534,7 @@ export async function solicitarCancelacion(
   const autoAprobar = pedido.estatus === 'PENDIENTE' && !tieneEncargo;
   const nuevoEstatus: EstatusPedido = autoAprobar ? 'CANCELADO' : 'SOLICITUD_CANCELACION';
 
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     // Restore stock when the cancellation is immediately approved
     if (autoAprobar) {
       for (const item of pedido.items.filter((i) => !i.esEncargo)) {
@@ -463,6 +556,22 @@ export async function solicitarCancelacion(
       include: { items: { include: { producto: true } }, historial: true, factura: true },
     });
   });
+
+  // US-A3 / US-CAJ2: Notify staff when customer requests cancellation review
+  if (nuevoEstatus === 'SOLICITUD_CANCELACION') {
+    void notificarRol('ADMIN', {
+      titulo: `⚠️ Solicitud de cancelación — Pedido #${pedidoId}`,
+      cuerpo: `El cliente solicita cancelar el pedido #${pedidoId}: ${motivo}`,
+      url: '/dashboard',
+    });
+    void notificarRol('CAJERO', {
+      titulo: `⚠️ Solicitud de cancelación — Pedido #${pedidoId}`,
+      cuerpo: `El cliente solicita cancelar el pedido #${pedidoId}: ${motivo}`,
+      url: '/dashboard',
+    });
+  }
+
+  return updated;
 }
 
 /**

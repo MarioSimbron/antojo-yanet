@@ -40,18 +40,28 @@ const CANCELAR_TAREA = gql`
   }
 `;
 
-const ESTATUS_COLOR: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
+const ACTUALIZAR_TAREA = gql`
+  mutation ActualizarTareaAdmin($id: Int!, $input: ActualizarTareaInput!) {
+    actualizarTarea(id: $id, input: $input) { id estatus }
+  }
+`;
+
+const ESTATUS_COLOR: Record<string, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+  PROPUESTA: 'info',
   PENDIENTE: 'warning',
   EN_PROCESO: 'default',
   COMPLETADA: 'success',
   CANCELADA: 'error',
+  RECHAZADA: 'error',
 };
 
 const ESTATUS_LABEL: Record<string, string> = {
+  PROPUESTA: 'Propuesta',
   PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En proceso',
   COMPLETADA: 'Completada',
   CANCELADA: 'Cancelada',
+  RECHAZADA: 'Rechazada',
 };
 
 function fmtFecha(iso: string) {
@@ -61,7 +71,8 @@ function fmtFecha(iso: string) {
 }
 
 /**
- * Production task management page for admins: task list + create/cancel dialogs.
+ * Production task management page for admins: task list + create/cancel dialogs +
+ * proposal review section (Feature B).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element}
  */
@@ -95,16 +106,23 @@ export default function TareasAdminPage() {
     onError: (e) => setSnackbar({ open: true, msg: e.message, ok: false }),
   });
 
+  const [actualizarTarea] = useMutation(ACTUALIZAR_TAREA, {
+    onCompleted: () => void refetch(),
+    onError: (e) => setSnackbar({ open: true, msg: e.message, ok: false }),
+  });
+
   const handleCrear = () => {
     if (!productoId || !cantidad || Number(cantidad) < 1) return;
     void crearTarea({ variables: { input: { productoId: Number(productoId), cantidadSolicitada: Number(cantidad), notas: notas || undefined } } });
   };
 
   const productos = (prodData?.productos ?? []) as { id: number; nombre: string; categoria: string; activo: boolean }[];
-  const tareas = (data?.tareas ?? []) as {
+  const todasTareas = (data?.tareas ?? []) as {
     id: number; estatus: string; cantidadSolicitada: number; cantidadProducida: number | null;
     notas: string | null; createdAt: string; producto: { id: number; nombre: string; categoria: string };
   }[];
+  const propuestas = todasTareas.filter((t) => t.estatus === 'PROPUESTA');
+  const tareas = todasTareas.filter((t) => t.estatus !== 'PROPUESTA');
 
   return (
     <Box>
@@ -118,7 +136,60 @@ export default function TareasAdminPage() {
       {loading && <CircularProgress />}
       {error && <Alert severity="error">Error al cargar tareas.</Alert>}
 
-      {!loading && tareas.length === 0 && (
+      {/* ── Propuestas del panadero (Feature B) ───────────────────────── */}
+      {propuestas.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Propuestas del maestro panadero ({propuestas.length})
+          </Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Producto</TableCell>
+                <TableCell>Cantidad</TableCell>
+                <TableCell>Notas</TableCell>
+                <TableCell align="right">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {propuestas.map((t) => (
+                <TableRow key={t.id} hover sx={{ bgcolor: 'info.50' }}>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={500}>{t.producto.nombre}</Typography>
+                    <Typography variant="caption" color="text.secondary">{t.producto.categoria}</Typography>
+                  </TableCell>
+                  <TableCell>{t.cantidadSolicitada}</TableCell>
+                  <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t.notas ?? '—'}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="success"
+                        onClick={() => void actualizarTarea({ variables: { id: t.id, input: { estatus: 'PENDIENTE' } } })}
+                      >
+                        Aprobar
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        onClick={() => void actualizarTarea({ variables: { id: t.id, input: { estatus: 'RECHAZADA' } } })}
+                      >
+                        Rechazar
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+
+      {!loading && tareas.length === 0 && propuestas.length === 0 && (
         <Typography color="text.secondary" sx={{ textAlign: 'center', py: 6 }}>
           No hay tareas de producción.
         </Typography>

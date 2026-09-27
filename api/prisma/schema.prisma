@@ -39,10 +39,24 @@ enum FormaPago {
 }
 
 enum EstatusTarea {
+  PROPUESTA
   PENDIENTE
   EN_PROCESO
   COMPLETADA
   CANCELADA
+  RECHAZADA
+}
+
+enum PrioridadCompra {
+  ALTA
+  MEDIA
+  BAJA
+}
+
+enum EstatusCompra {
+  PENDIENTE
+  EN_PROCESO
+  SURTIDO
 }
 
 // ─── Modelos ─────────────────────────────────────────────────────────────────
@@ -63,6 +77,8 @@ model Usuario {
   historialAcciones       HistorialEstatusPedido[]
   tareasAsignadas         TareaProduccion[]         @relation("TareasAsignadas")
   pushSubscriptions       PushSubscription[]
+  notificaciones          Notificacion[]
+  listaCompras            ListaCompra[]
 
   @@map("usuario")
 }
@@ -85,6 +101,7 @@ model Producto {
 
   itemsPedido      ItemPedido[]
   tareasProduccion TareaProduccion[]
+  recetaItems      RecetaItem[]
 
   @@map("producto")
 }
@@ -199,6 +216,23 @@ model PushSubscription {
   @@map("push_subscription")
 }
 
+model Notificacion {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int?     @map("usuario_id")
+  guestToken String?  @map("guest_token") @db.VarChar(36)
+  titulo     String
+  cuerpo     String   @db.Text
+  url        String?  @db.VarChar(500)
+  leida      Boolean  @default(false)
+  creadaEn   DateTime @default(now()) @map("creada_en")
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([guestToken])
+  @@map("notificacion")
+}
+
 model Cupon {
   id               Int      @id @default(autoincrement())
   codigo           String   @unique @db.VarChar(20)
@@ -209,4 +243,52 @@ model Cupon {
   usado            Boolean  @default(false)
 
   @@map("cupon")
+}
+
+model Insumo {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  unidad      String   @db.VarChar(30)
+  stockActual Decimal  @default(0) @map("stock_actual") @db.Decimal(10, 3)
+  stockMinimo Decimal  @default(0) @map("stock_minimo") @db.Decimal(10, 3)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  recetaItems  RecetaItem[]
+  listaCompras ListaCompra[]
+
+  @@map("insumo")
+}
+
+model RecetaItem {
+  id                Int     @id @default(autoincrement())
+  productoId        Int     @map("producto_id")
+  insumoId          Int     @map("insumo_id")
+  cantidadPorUnidad Decimal @map("cantidad_por_unidad") @db.Decimal(10, 3)
+
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  insumo   Insumo   @relation(fields: [insumoId],   references: [id], onDelete: Cascade)
+
+  @@unique([productoId, insumoId])
+  @@map("receta_item")
+}
+
+model ListaCompra {
+  id          Int             @id @default(autoincrement())
+  nombre      String
+  cantidad    Decimal         @db.Decimal(10, 3)
+  unidad      String          @db.VarChar(30)
+  prioridad   PrioridadCompra @default(MEDIA)
+  notas       String?         @db.Text
+  estatus     EstatusCompra   @default(PENDIENTE)
+  creadoPorId Int             @map("creado_por_id")
+  insumoId    Int?            @map("insumo_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt      @map("updated_at")
+
+  creadoPor Usuario  @relation(fields: [creadoPorId], references: [id])
+  insumo    Insumo?  @relation(fields: [insumoId],    references: [id])
+
+  @@index([creadoPorId])
+  @@map("lista_compra")
 }

@@ -8,6 +8,7 @@ import { verificarToken } from '../lib/jwt.js';
 import { verificarOwnership } from './pedido.service.js';
 import { PrismaClient } from '@prisma/client';
 import { registrarEmitter } from './pedido.service.js';
+import { registrarNotificacionEmitter } from '../lib/push.js';
 
 const prisma = new PrismaClient();
 
@@ -49,10 +50,12 @@ export function iniciarSocketIO(server: http.Server): IOServer {
   });
 
   io.on('connection', (socket: Socket) => {
-    // Staff users auto-join their role room on connect so broadcasts reach them
+    // Staff users auto-join their role room on connect so broadcasts reach them.
+    // Each authenticated user also joins a personal room for individual notifications.
     if (socket.data.usuario) {
       const rol: string = socket.data.usuario.rol;
       void socket.join(`rol:${rol}`);
+      void socket.join(`usuario:${socket.data.usuario.usuarioId}`);
     }
 
     socket.on('join_pedido', async (pedidoId: number) => {
@@ -76,6 +79,11 @@ export function iniciarSocketIO(server: http.Server): IOServer {
   // Register the emitter function in the order service (supports role rooms too)
   registrarEmitter((evento, room, data) => {
     io.to(room).emit(evento, data);
+  });
+
+  // Register the notification emitter so push.ts can broadcast without importing this module
+  registrarNotificacionEmitter((room, data) => {
+    io.to(room).emit('notificacion:nueva', data);
   });
 
   return io;

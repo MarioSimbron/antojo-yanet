@@ -16,7 +16,7 @@
  * IDs as needed (e.g. from a list page); each is remembered and re-joined on reconnect.
  *
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- * @returns {{ unirseAPedido, onEstadoActualizado, onRepartidorAsignado }}
+ * @returns {{ unirseAPedido, onEstadoActualizado, onRepartidorAsignado, onNotificacion }}
  */
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -27,6 +27,14 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:4000';
 
 type EstadoPayload = { pedidoId: number; estatusNuevo: string; timestamp: string };
 type RepartidorPayload = { pedidoId: number; nombreRepartidor: string };
+type NotificacionPayload = {
+  id: number;
+  titulo: string;
+  cuerpo: string;
+  url?: string;
+  leida: boolean;
+  creadaEn: string;
+};
 
 /**
  * Opens a Socket.IO connection authenticated with the JWT or guest token, reconnecting
@@ -48,6 +56,7 @@ export function useSocket() {
   // Persist active callbacks so they can be re-registered on a new socket instance.
   const estadoCallbackRef = useRef<((data: EstadoPayload) => void) | null>(null);
   const repartidorCallbackRef = useRef<((data: RepartidorPayload) => void) | null>(null);
+  const notificacionCallbackRef = useRef<((data: NotificacionPayload) => void) | null>(null);
 
   const { accessToken } = useAuthStore();
   const { guestToken } = useGuestStore();
@@ -74,6 +83,9 @@ export function useSocket() {
     }
     if (repartidorCallbackRef.current) {
       socket.on('pedido:asignado_repartidor', repartidorCallbackRef.current);
+    }
+    if (notificacionCallbackRef.current) {
+      socket.on('notificacion:nueva', notificacionCallbackRef.current);
     }
 
     socketRef.current = socket;
@@ -131,5 +143,24 @@ export function useSocket() {
     [],
   );
 
-  return { unirseAPedido, onEstadoActualizado, onRepartidorAsignado };
+  /**
+   * Subscribes to the `notificacion:nueva` event emitted when a new notification is
+   * persisted for the current user or guest. The callback is stored in a ref so it
+   * survives socket recreations; the returned function unsubscribes.
+   * @param {(data: NotificacionPayload) => void} callback - Handler called on each event.
+   * @returns {() => void} Unsubscribe function.
+   */
+  const onNotificacion = useCallback(
+    (callback: (data: NotificacionPayload) => void) => {
+      notificacionCallbackRef.current = callback;
+      socketRef.current?.on('notificacion:nueva', callback);
+      return () => {
+        notificacionCallbackRef.current = null;
+        socketRef.current?.off('notificacion:nueva', callback);
+      };
+    },
+    [],
+  );
+
+  return { unirseAPedido, onEstadoActualizado, onRepartidorAsignado, onNotificacion };
 }

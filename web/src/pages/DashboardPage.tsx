@@ -11,9 +11,11 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import HistoryIcon from '@mui/icons-material/History';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import PeopleIcon from '@mui/icons-material/People';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useAuthStore } from '../store/auth.store';
 import EstatusChip, { etiquetaEstatus } from '../components/EstatusChip';
@@ -22,6 +24,8 @@ import EmpleadosPage from './EmpleadosPage';
 import ProductosPage from './ProductosPage';
 import TareasAdminPage from './TareasAdminPage';
 import TareasMaestroPage from './TareasMaestroPage';
+import InventarioPage from './InventarioPage';
+import ListaCompraPage from './ListaCompraPage';
 
 /**
  * GraphQL query for the staff order listing (used for active orders).
@@ -542,6 +546,8 @@ export default function DashboardPage() {
     },
     { to: '/dashboard/tareas', label: 'Tareas', icon: <AssignmentIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/mis-tareas', label: 'Mis Tareas', icon: <AssignmentIcon />, roles: ['ADMIN'] },
+    { to: '/dashboard/inventario', label: 'Inventario', icon: <InventoryIcon />, roles: ['ADMIN', 'MAESTRO_PANADERO', 'CAJERO'] },
+    { to: '/dashboard/compras', label: 'Lista de compras', icon: <ShoppingCartIcon />, roles: ['ADMIN', 'MAESTRO_PANADERO', 'CAJERO'] },
     { to: '/dashboard/reportes', label: 'Reportes', icon: <BarChartIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/productos', label: 'Productos', icon: <StorefrontIcon />, roles: ['ADMIN'] },
     { to: '/dashboard/empleados', label: 'Empleados', icon: <PeopleIcon />, roles: ['ADMIN'] },
@@ -604,6 +610,14 @@ export default function DashboardPage() {
           <Route
             path="mis-tareas"
             element={<RoleGuard roles={['ADMIN', 'MAESTRO_PANADERO']}><TareasMaestroPage /></RoleGuard>}
+          />
+          <Route
+            path="inventario"
+            element={<RoleGuard roles={['ADMIN', 'MAESTRO_PANADERO', 'CAJERO']}><InventarioPage /></RoleGuard>}
+          />
+          <Route
+            path="compras"
+            element={<RoleGuard roles={['ADMIN', 'MAESTRO_PANADERO', 'CAJERO']}><ListaCompraPage /></RoleGuard>}
           />
         </Routes>
       </Box>

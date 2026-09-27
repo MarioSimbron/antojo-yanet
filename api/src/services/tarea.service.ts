@@ -1,5 +1,6 @@
 /**
- * Production-task service: creation, status transitions and stock replenishment.
+ * Production-task service: creation, status transitions, stock replenishment,
+ * and the maestro-panadero task-proposal workflow (Feature B).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 import { PrismaClient, EstatusTarea } from '@prisma/client';
@@ -24,76 +25,112 @@ export async function listarTareas() {
 }
 
 /**
- * Returns all tasks assigned by a specific admin, used by the maestro panadero to
- * see their own queue.
+ * Returns the task queue visible to the maestro panadero: active tasks plus any
+ * proposals they submitted that are awaiting admin approval or have been resolved.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- * @param {number} adminId - ID of the admin who created the tasks (unused in maestro view).
- * @returns {Promise<TareaProduccion[]>} Pending and in-progress tasks newest first.
+ * @param {number} usuarioId - ID of the calling maestro panadero.
+ * @returns {Promise<TareaProduccion[]>} Relevant tasks newest first.
  */
-export async function listarMisTareas() {
+export async function listarMisTareas(usuarioId?: number) {
   return prisma.tareaProduccion.findMany({
-    where: { estatus: { in: ['PENDIENTE', 'EN_PROCESO'] } },
+    where: {
+      estatus: { in: ['PROPUESTA', 'PENDIENTE', 'EN_PROCESO', 'RECHAZADA'] },
+      ...(usuarioId ? { asignadoPorId: usuarioId } : {}),
+    },
     ...CON_PRODUCTO,
     orderBy: { createdAt: 'desc' },
   });
 }
 
 /**
- * Creates a production task and sends a push notification to all maestro panadero users.
+ * Creates a production task. When called by an admin the task starts as PENDIENTE
+ * and all maestro panaderos are notified. When called by a maestro panadero the task
+ * starts as PROPUESTA and only the admin is notified to review it (Feature B / US-B1).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {{ productoId: number; cantidadSolicitada: number; notas?: string }} input - Task data.
- * @param {number} adminId - ID of the admin creating the task.
+ * @param {number} creadorId - ID of the user creating the task.
+ * @param {string} callerRol - Role of the caller ('ADMIN' | 'MAESTRO_PANADERO').
  * @returns {Promise<TareaProduccion>} The created task with product data.
  * @throws {GraphQLError} NOT_FOUND if the product does not exist.
  */
 export async function crearTarea(
   input: { productoId: number; cantidadSolicitada: number; notas?: string },
-  adminId: number,
+  creadorId: number,
+  callerRol: string,
 ) {
   const producto = await prisma.producto.findUnique({ where: { id: input.productoId } });
   if (!producto) {
     throw new GraphQLError('Producto no encontrado', { extensions: { code: 'NOT_FOUND' } });
   }
 
+  const esPanadero = callerRol === 'MAESTRO_PANADERO';
+  const estatus: EstatusTarea = esPanadero ? 'PROPUESTA' : 'PENDIENTE';
+
   const tarea = await prisma.tareaProduccion.create({
     data: {
       productoId: input.productoId,
       cantidadSolicitada: input.cantidadSolicitada,
       notas: input.notas ?? null,
-      asignadoPorId: adminId,
+      asignadoPorId: creadorId,
+      estatus,
     },
     ...CON_PRODUCTO,
   });
 
-  void notificarRol('MAESTRO_PANADERO', {
-    titulo: '🍞 Nueva tarea de producción',
-    cuerpo: `Producir ${input.cantidadSolicitada} piezas de ${producto.nombre}`,
-    url: '/dashboard/mis-tareas',
-    data: { tareaId: tarea.id },
-  });
+  if (esPanadero) {
+    // US-B1: Notify admin of the proposal
+    void notificarRol('ADMIN', {
+      titulo: '📋 Propuesta de tarea del panadero',
+      cuerpo: `El maestro panadero propone producir ${input.cantidadSolicitada} piezas de ${producto.nombre}.`,
+      url: '/dashboard/tareas',
+      data: { tareaId: tarea.id },
+    });
+  } else {
+    // Existing flow: notify all maestro panaderos of the new admin-created task
+    void notificarRol('MAESTRO_PANADERO', {
+      titulo: '🍞 Nueva tarea de producción',
+      cuerpo: `Producir ${input.cantidadSolicitada} piezas de ${producto.nombre}`,
+      url: '/dashboard/mis-tareas',
+      data: { tareaId: tarea.id },
+    });
+  }
 
   return tarea;
 }
 
 /**
- * Updates a task's status. When marked COMPLETADA, increments the product's stock and
- * notifies the admin. Only non-terminal tasks may be updated.
+ * Updates a task's status, enforcing the proposal workflow for maestro panadero.
+ * - PROPUESTA → PENDIENTE: admin approval; notifies the proposing panadero (US-B2).
+ * - PROPUESTA → RECHAZADA: admin rejection; notifies the proposing panadero (US-B3).
+ * - Any → EN_PROCESO: raw-material stock is deducted automatically (Feature D).
+ * - Any → COMPLETADA: product stock is incremented; admin is notified.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {number} id - Task ID.
  * @param {{ estatus: EstatusTarea; cantidadProducida?: number }} input - New status and optional quantity.
+ * @param {string} callerRol - Role of the caller.
  * @returns {Promise<TareaProduccion>} The updated task with product data.
- * @throws {GraphQLError} NOT_FOUND or TAREA_FINALIZADA.
+ * @throws {GraphQLError} NOT_FOUND, TAREA_FINALIZADA or FORBIDDEN.
  */
 export async function actualizarTarea(
   id: number,
   input: { estatus: EstatusTarea; cantidadProducida?: number },
+  callerRol: string,
 ) {
   const tarea = await prisma.tareaProduccion.findUnique({ where: { id }, include: { producto: true } });
   if (!tarea) {
     throw new GraphQLError('Tarea no encontrada', { extensions: { code: 'NOT_FOUND' } });
   }
-  if (tarea.estatus === 'COMPLETADA' || tarea.estatus === 'CANCELADA') {
+
+  const terminales: EstatusTarea[] = ['COMPLETADA', 'CANCELADA', 'RECHAZADA'];
+  if (terminales.includes(tarea.estatus)) {
     throw new GraphQLError('La tarea ya está finalizada', { extensions: { code: 'TAREA_FINALIZADA' } });
+  }
+
+  // Only admin may resolve proposals
+  if (tarea.estatus === 'PROPUESTA' && callerRol !== 'ADMIN') {
+    throw new GraphQLError('Solo el administrador puede aprobar o rechazar propuestas', {
+      extensions: { code: 'FORBIDDEN' },
+    });
   }
 
   const producida = input.cantidadProducida ?? tarea.cantidadSolicitada;
@@ -115,6 +152,31 @@ export async function actualizarTarea(
     });
   });
 
+  // US-B2: Admin approved the proposal → notify the proposing panadero
+  if (tarea.estatus === 'PROPUESTA' && input.estatus === 'PENDIENTE') {
+    void notificarUsuario(tarea.asignadoPorId, {
+      titulo: `✅ Tu propuesta fue aprobada: ${tarea.producto.nombre}`,
+      cuerpo: `El admin aprobó tu propuesta de producir ${tarea.cantidadSolicitada} piezas.`,
+      url: '/dashboard/mis-tareas',
+    });
+  }
+
+  // US-B3: Admin rejected the proposal → notify the proposing panadero
+  if (tarea.estatus === 'PROPUESTA' && input.estatus === 'RECHAZADA') {
+    void notificarUsuario(tarea.asignadoPorId, {
+      titulo: `❌ Tu propuesta fue rechazada: ${tarea.producto.nombre}`,
+      cuerpo: 'El admin no aprobó esta propuesta de producción.',
+      url: '/dashboard/mis-tareas',
+    });
+  }
+
+  // Feature D: Deduct raw-material stock when production starts
+  if (input.estatus === 'EN_PROCESO') {
+    // Import lazily to avoid circular dependencies
+    const { descontarInsumosPorTarea } = await import('./inventario.service.js');
+    void descontarInsumosPorTarea(id);
+  }
+
   if (input.estatus === 'COMPLETADA') {
     void notificarRol('ADMIN', {
       titulo: '✅ Producción completada',
@@ -128,7 +190,8 @@ export async function actualizarTarea(
 }
 
 /**
- * Cancels a pending task (ADMIN only).
+ * Cancels a pending or in-progress task (ADMIN only). Notifies all maestro panaderos
+ * that the task has been cancelled (US-MP2).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {number} id - Task ID.
  * @returns {Promise<TareaProduccion>} The cancelled task.
@@ -139,14 +202,24 @@ export async function cancelarTarea(id: number) {
   if (!tarea) {
     throw new GraphQLError('Tarea no encontrada', { extensions: { code: 'NOT_FOUND' } });
   }
-  if (tarea.estatus === 'COMPLETADA' || tarea.estatus === 'CANCELADA') {
+  const terminales: EstatusTarea[] = ['COMPLETADA', 'CANCELADA', 'RECHAZADA'];
+  if (terminales.includes(tarea.estatus)) {
     throw new GraphQLError('La tarea ya está finalizada', { extensions: { code: 'TAREA_FINALIZADA' } });
   }
-  return prisma.tareaProduccion.update({
+  const updated = await prisma.tareaProduccion.update({
     where: { id },
     data: { estatus: 'CANCELADA' },
     ...CON_PRODUCTO,
   });
+
+  // US-MP2: Notify all maestro panaderos that the task was cancelled
+  void notificarRol('MAESTRO_PANADERO', {
+    titulo: `❌ Tarea cancelada: ${updated.producto.nombre}`,
+    cuerpo: `La tarea de producir ${updated.cantidadSolicitada} piezas de ${updated.producto.nombre} fue cancelada.`,
+    url: '/dashboard/mis-tareas',
+  });
+
+  return updated;
 }
 
 // Re-export for use in other services

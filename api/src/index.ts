@@ -20,6 +20,9 @@ import { productoTypeDefs } from './graphql/typeDefs/producto.js';
 import { pedidoTypeDefs } from './graphql/typeDefs/pedido.js';
 import { asistenteTypeDefs } from './graphql/typeDefs/asistente.js';
 import { tareaTypeDefs } from './graphql/typeDefs/tarea.js';
+import { notificacionTypeDefs } from './graphql/typeDefs/notificacion.js';
+import { inventarioTypeDefs } from './graphql/typeDefs/inventario.js';
+import { listaCompraTypeDefs } from './graphql/typeDefs/listaCompra.js';
 
 import { authResolvers } from './graphql/resolvers/auth.resolvers.js';
 import { usuarioResolvers } from './graphql/resolvers/usuario.resolvers.js';
@@ -27,6 +30,9 @@ import { productoResolvers } from './graphql/resolvers/producto.resolvers.js';
 import { pedidoResolvers } from './graphql/resolvers/pedido.resolvers.js';
 import { asistenteResolvers } from './graphql/resolvers/asistente.resolvers.js';
 import { tareaResolvers } from './graphql/resolvers/tarea.resolvers.js';
+import { notificacionResolvers } from './graphql/resolvers/notificacion.resolvers.js';
+import { inventarioResolvers } from './graphql/resolvers/inventario.resolvers.js';
+import { listaCompraResolvers } from './graphql/resolvers/listaCompra.resolvers.js';
 
 import { buildContext } from './middleware/auth.js';
 import { iniciarSocketIO } from './services/socket.service.js';
@@ -58,6 +64,9 @@ const typeDefs = mergeTypeDefs([
   pedidoTypeDefs,
   asistenteTypeDefs,
   tareaTypeDefs,
+  notificacionTypeDefs,
+  inventarioTypeDefs,
+  listaCompraTypeDefs,
 ]);
 
 /**
@@ -71,6 +80,9 @@ const resolvers = mergeResolvers([
   pedidoResolvers,
   asistenteResolvers,
   tareaResolvers,
+  notificacionResolvers,
+  inventarioResolvers,
+  listaCompraResolvers,
 ]);
 
 /**
