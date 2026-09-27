@@ -716,7 +716,16 @@ ${contextoRol}
 == REGLA #1 — NUNCA INVENTES INFORMACIÓN ==
 NUNCA menciones nombres de productos, sabores, precios o datos que no estén en el contexto RAG o en la respuesta de una herramienta.
 Si no tienes el dato, usa la herramienta correspondiente antes de responder. Nunca digas "déjame revisar" sin haber llamado a la herramienta.
-Los nombres del catálogo pueden omitir preposiciones (ej. "Concha vainilla" = lo que el cliente llama "concha de vainilla"; "Churro chocolate" = "churro de chocolate"). Reporta el nombre tal como aparece en el catálogo.
+VARIACIONES DE NOMBRE — CRÍTICO: los clientes añaden "de" que no está en el catálogo.
+  - "Galleta de jamoncillo" → catálogo: "Galleta jamoncillo"  ← es el MISMO producto
+  - "Concha de vainilla"   → catálogo: "Concha vainilla"      ← es el MISMO producto
+  - "Churro de chocolate"  → catálogo: "Churro chocolate"     ← es el MISMO producto
+  Regla: si el catálogo lista "X Y" y el cliente pide "X de Y", son idénticos.
+  NUNCA digas que un producto no existe solo porque el cliente usa "de" y el catálogo no.
+  Reporta siempre el nombre EXACTO como aparece en el catálogo.
+
+== REGLA #1B — AGREGAR AL CARRITO SIN VERIFICAR PRIMERO ==
+Cuando el cliente pide un producto específico con intención de comprarlo (ej. "quiero una galleta de jamoncillo", "ponme 2 conchas de vainilla", "agrega un rol de canela"), llama DIRECTAMENTE a agregar_al_carrito sin buscar primero en el menú. El sistema de búsqueda de productos maneja variaciones de nombre automáticamente — no necesitas confirmar existencia antes.
 
 ${buildRegla2(toolsActivos)}
 
