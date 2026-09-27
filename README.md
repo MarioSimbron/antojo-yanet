@@ -194,6 +194,50 @@ PENDIENTE / ESPERANDO_CONFIRMACION
 
 ---
 
+## DulceBot — Cómo funciona
+
+DulceBot es el asistente de IA de Antojo de Yanet. Usa un pipeline RAG + Groq function calling para responder preguntas sobre el menú, agregar productos al carrito e iniciar encargos, adaptando su comportamiento al rol del usuario.
+
+### Pipeline por mensaje
+
+1. **RAG**: Se recuperan hasta 5 chunks del índice semántico (`api/docs/`) con el modelo `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (umbral coseno ≥ 0.25). Los chunks relevantes se inyectan en el system prompt como contexto de conocimiento.
+2. **Primera llamada a Groq** (`openai/gpt-oss-120b`): El modelo decide qué herramienta llamar (si es que necesita una). Las herramientas disponibles dependen del rol del usuario (ver tabla abajo).
+3. **Ejecución del tool**: Si el modelo llama una herramienta, se ejecuta en el servidor (búsqueda en menú, agregar al carrito, consultar BD, etc.).
+4. **Segunda llamada a Groq**: El modelo recibe el resultado del tool y genera la respuesta final en texto natural.
+
+### Reglas del system prompt
+
+| Regla | Propósito |
+|---|---|
+| REGLA #1 — No inventar datos | El modelo no puede inventar precios, stock ni características. Sí puede reconocer categorías si el RAG lo confirma. Las variaciones de nombre con "de" (`galleta de jamoncillo` = `galleta jamoncillo`) se manejan en el servidor. |
+| REGLA #1B — Carrito directo | Llama a `agregar_al_carrito` directamente solo cuando hay intención explícita de compra (verbos: "quiero", "dame", "agrega"). Las preguntas de disponibilidad (`¿vendes pan?`) siempre van a `buscar_en_menu`. |
+| REGLA #2 — Herramientas dinámicas | Solo lista las herramientas que el rol actual tiene asignadas. Construida en tiempo de ejecución por `buildRegla2(tools)` para evitar que el modelo llame tools que Groq rechazaría. |
+| REGLA #3 — Ambigüedad (crítica) | Cuando `agregar_al_carrito` devuelve una lista de opciones, el modelo debe listar TODOS los nombres, uno por línea con guión, antes de preguntar cuál quiere el cliente. El cliente no ve el resultado interno del tool. |
+| REGLA #4 — Encargos | No confirmar encargos como "registrados"; solo recopilar los datos y avisar que el equipo los revisará. |
+| REGLA #5 — Formato | Respuestas en texto plano, máximo 6 elementos por lista, sin emojis ni markdown en la conversación. |
+| REGLA #6 — Límites de rol | Si el usuario pide algo que requiere un tool que su rol no tiene, el modelo responde brevemente que esa función no está disponible. |
+
+### Herramientas por rol
+
+| Herramienta | Invitado / CLIENTE | CAJERO | REPARTIDOR | MAESTRO_PANADERO | ADMIN |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `buscar_en_menu` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `agregar_al_carrito` | ✓ | — | — | — | ✓ |
+| `consultar_pedido` | ✓ | ✓ | ✓ | — | ✓ |
+| `consultar_stock` | ✓ | ✓ | — | ✓ | ✓ |
+| `iniciar_encargo` | ✓ | — | — | — | ✓ |
+| `listar_pedidos_activos` | — | ✓ | — | — | ✓ |
+| `cambiar_estatus_pedido` | — | ✓ | ✓ | ✓ | ✓ |
+| `mis_pedidos_asignados` | — | — | ✓ | — | — |
+| `mis_tareas` | — | — | — | ✓ | ✓ |
+| `ver_reporte_ventas` | — | — | — | — | ✓ |
+
+### Matching de nombre de producto
+
+El servidor tokeniza los nombres quitando stop-words y normalizando acentos antes de buscar en la BD. Así `galleta de jamoncillo` y `galleta jamoncillo` encuentran el mismo producto. El tokenizador también aplica stemming básico (quita `s`/`es` al final) para manejar plurales.
+
+---
+
 ## URLs
 
 | URL | Servicio |

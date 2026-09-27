@@ -73,6 +73,30 @@ const CASOS_EVALUACION = [
     fuenteEsperada: 'faq.md',
     descripcion: 'Personalización de encargo',
   },
+  // ── Catálogo de productos (menu.md) ─────────────────────────────────────────
+  // These cases cover the RAG side of Bug 2 ("¿Vendes pan?" returned "No
+  // vendemos pan"): the menu chunk must surface so the model can answer
+  // availability questions from context instead of calling agregar_al_carrito.
+  {
+    query: '¿tienen galletas?',
+    fuenteEsperada: 'menu.md',
+    descripcion: 'Disponibilidad de galletas',
+  },
+  {
+    query: 'precio de las conchas',
+    fuenteEsperada: 'menu.md',
+    descripcion: 'Precio de conchas',
+  },
+  {
+    query: '¿qué pan dulce tienen disponible?',
+    fuenteEsperada: 'menu.md',
+    descripcion: 'Pan dulce disponible',
+  },
+  {
+    query: 'pasteles para cumpleaños',
+    fuenteEsperada: 'menu.md',
+    descripcion: 'Pasteles en el catálogo',
+  },
 ] as const;
 
 beforeAll(async () => {

@@ -60,7 +60,7 @@ const STOPWORDS = new Set(['de', 'del', 'con', 'la', 'las', 'el', 'los', 'y', 'u
  * @param {string} texto - Text to tokenize.
  * @returns {string[]} The normalized tokens.
  */
-function tokenizar(texto: string): string[] {
+export function tokenizar(texto: string): string[] {
   return texto
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -295,7 +295,7 @@ const T_REPORTE_VENTAS: GroqTool = {
  * @param {string | undefined} rol - User role or undefined for guest.
  * @returns {GroqTool[]} The tools to pass to the Groq call.
  */
-function obtenerToolsPorRol(rol: string | undefined): GroqTool[] {
+export function obtenerToolsPorRol(rol: string | undefined): GroqTool[] {
   switch (rol) {
     case 'REPARTIDOR':
       return [T_BUSCAR_MENU, T_CONSULTAR_PEDIDO, T_MIS_PEDIDOS_ASIGNADOS, T_CAMBIAR_ESTATUS];
@@ -324,7 +324,7 @@ function obtenerToolsPorRol(rol: string | undefined): GroqTool[] {
  * @param {GroqTool[]} tools - The tool set for the current role.
  * @returns {string} The REGLA #2 block with only the relevant tool descriptions.
  */
-function buildRegla2(tools: GroqTool[]): string {
+export function buildRegla2(tools: GroqTool[]): string {
   const names = new Set(tools.map((t) => t.function.name));
   const lines: string[] = ['== REGLA #2 — HERRAMIENTAS SON LA FUENTE DE VERDAD =='];
   if (names.has('buscar_en_menu'))         lines.push('- Qué vendemos / precios: buscar_en_menu.');
