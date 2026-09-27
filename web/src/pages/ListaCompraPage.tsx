@@ -295,7 +295,11 @@ export default function ListaCompraPage() {
               label="Cantidad *"
               type="number"
               value={cantidad}
-              onChange={(e) => setCantidad(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                // Block zero, negatives and non-numeric at the input level
+                if (v === '' || parseFloat(v) > 0) setCantidad(v);
+              }}
               size="small"
               sx={{ minWidth: 120 }}
               inputProps={{ min: 0.001, step: 'any' }}
