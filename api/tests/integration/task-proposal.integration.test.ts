@@ -111,13 +111,12 @@ describe('Feature B — Task proposal workflow', () => {
     expect(body.singleResult.errors?.[0]?.extensions?.code).toBe('FORBIDDEN');
   });
 
-  it('misTareas only returns own tasks for panadero', async () => {
+  it('misTareas returns admin tasks (PENDIENTE/EN_PROCESO) + own proposals for panadero', async () => {
     const res = await executeAs('MAESTRO_PANADERO', panaderoId, MIS_TAREAS);
     const tasks = (res.body as { singleResult: { data: { misTareas: { id: number }[] } } })
       .singleResult.data.misTareas;
     expect(Array.isArray(tasks)).toBe(true);
-    // All returned tasks were created by this panadero (panaderoId = asignadoPorId)
-    // They should all exist; no tasks from other users should appear
+    // Should see at least the admin-created PENDIENTE task and the panadero's own proposals
     expect(tasks.length).toBeGreaterThan(0);
   });
 

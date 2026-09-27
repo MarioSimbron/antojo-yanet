@@ -26,8 +26,9 @@ export async function listarTareas() {
 }
 
 /**
- * Returns the task queue visible to the maestro panadero: active tasks plus any
- * proposals they submitted that are awaiting admin approval or have been resolved.
+ * Returns the task queue visible to the maestro panadero.
+ * - PENDIENTE / EN_PROCESO tasks are admin-created broadcasts visible to ALL panaderos.
+ * - PROPUESTA / RECHAZADA are the panadero's own proposals, visible only to them.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {number} usuarioId - ID of the calling maestro panadero.
  * @returns {Promise<TareaProduccion[]>} Relevant tasks newest first.
@@ -35,8 +36,14 @@ export async function listarTareas() {
 export async function listarMisTareas(usuarioId?: number) {
   return prisma.tareaProduccion.findMany({
     where: {
-      estatus: { in: ['PROPUESTA', 'PENDIENTE', 'EN_PROCESO', 'RECHAZADA'] },
-      ...(usuarioId ? { asignadoPorId: usuarioId } : {}),
+      OR: [
+        // Admin-assigned tasks any panadero can work on
+        { estatus: { in: ['PENDIENTE', 'EN_PROCESO'] } },
+        // Own proposals (waiting for approval or already resolved)
+        ...(usuarioId
+          ? [{ estatus: { in: ['PROPUESTA', 'RECHAZADA'] }, asignadoPorId: usuarioId }]
+          : []),
+      ],
     },
     ...CON_PRODUCTO,
     orderBy: { createdAt: 'desc' },
