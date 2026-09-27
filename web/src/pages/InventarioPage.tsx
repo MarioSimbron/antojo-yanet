@@ -1,7 +1,7 @@
 /**
  * Inventory page showing finished-product stock and raw-material ingredient levels.
- * Accessible to ADMIN, MAESTRO_PANADERO and CAJERO. Admins can edit ingredient
- * stock values; all roles can navigate to the purchase list for low-stock items.
+ * Accessible to ADMIN, MAESTRO_PANADERO and CAJERO. Admins can create new ingredients
+ * and edit stock values inline; all roles can navigate to the purchase list.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The inventory management page.
  */
@@ -53,6 +53,14 @@ const ACTUALIZAR_INSUMO = gql`
   mutation ActualizarInsumo($id: Int!, $stockActual: Float, $stockMinimo: Float) {
     actualizarInsumo(id: $id, stockActual: $stockActual, stockMinimo: $stockMinimo) {
       id stockActual stockMinimo
+    }
+  }
+`;
+
+const CREAR_INSUMO = gql`
+  mutation CrearInsumoDesdeInventario($input: CrearInsumoInput!) {
+    crearInsumo(input: $input) {
+      id nombre unidad stockActual stockMinimo
     }
   }
 `;
@@ -110,10 +118,24 @@ export default function InventarioPage() {
     fetchPolicy: 'cache-and-network',
   });
   const [actualizarInsumo] = useMutation(ACTUALIZAR_INSUMO, { onCompleted: () => refetchInsumos() });
+  const [crearInsumo, { loading: creandoInsumo }] = useMutation(CREAR_INSUMO, {
+    onCompleted: () => { void refetchInsumos(); setCrearOpen(false); resetCrear(); },
+  });
 
   const [editando, setEditando] = useState<Insumo | null>(null);
   const [stockActual, setStockActual] = useState('');
   const [stockMinimo, setStockMinimo] = useState('');
+
+  // "Nuevo insumo" dialog state
+  const [crearOpen, setCrearOpen] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevoUnidad, setNuevoUnidad] = useState('');
+  const [nuevoStockMinimo, setNuevoStockMinimo] = useState('');
+
+  /**
+   * Resets the create-insumo dialog fields to empty.
+   */
+  const resetCrear = () => { setNuevoNombre(''); setNuevoUnidad(''); setNuevoStockMinimo(''); };
 
   /**
    * Opens the edit dialog for an ingredient, pre-filling current values.
@@ -182,6 +204,11 @@ export default function InventarioPage() {
       {/* ── Materias primas ──────────────────────────────────────────── */}
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="h6">Materias primas</Typography>
+        {esAdmin && (
+          <Button variant="contained" size="small" onClick={() => setCrearOpen(true)}>
+            ＋ Nuevo insumo
+          </Button>
+        )}
       </Stack>
       {insLoading && !insData ? (
         <CircularProgress size={24} />
@@ -235,6 +262,60 @@ export default function InventarioPage() {
           </Table>
         </TableContainer>
       )}
+
+      {/* ── Create insumo dialog (ADMIN only) ───────────────────────── */}
+      <Dialog open={crearOpen} onClose={() => { setCrearOpen(false); resetCrear(); }} maxWidth="xs" fullWidth>
+        <DialogTitle>Nuevo insumo</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Nombre *"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+              size="small"
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label="Unidad *"
+              value={nuevoUnidad}
+              onChange={(e) => setNuevoUnidad(e.target.value)}
+              size="small"
+              fullWidth
+              placeholder="kg, litros, piezas…"
+            />
+            <TextField
+              label="Stock mínimo"
+              type="number"
+              value={nuevoStockMinimo}
+              onChange={(e) => setNuevoStockMinimo(e.target.value)}
+              size="small"
+              fullWidth
+              placeholder="0"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setCrearOpen(false); resetCrear(); }}>Cancelar</Button>
+          <Button
+            variant="contained"
+            disabled={creandoInsumo || !nuevoNombre.trim() || !nuevoUnidad.trim()}
+            onClick={() => {
+              void crearInsumo({
+                variables: {
+                  input: {
+                    nombre: nuevoNombre.trim(),
+                    unidad: nuevoUnidad.trim(),
+                    stockMinimo: nuevoStockMinimo ? parseFloat(nuevoStockMinimo) : 0,
+                  },
+                },
+              });
+            }}
+          >
+            {creandoInsumo ? 'Guardando…' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Edit dialog (ADMIN only) ─────────────────────────────────── */}
       <Dialog open={Boolean(editando)} onClose={() => setEditando(null)} maxWidth="xs" fullWidth>
