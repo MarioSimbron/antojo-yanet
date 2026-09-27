@@ -619,6 +619,8 @@ export default function DashboardPage() {
             path="compras"
             element={<RoleGuard roles={['ADMIN', 'MAESTRO_PANADERO', 'CAJERO']}><ListaCompraPage /></RoleGuard>}
           />
+          {/* Redirect legacy notification URLs (e.g. /dashboard/pedidos/:id) to pedidos activos */}
+          <Route path="pedidos/:id" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Box>
     </Stack>
