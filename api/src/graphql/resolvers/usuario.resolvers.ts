@@ -1,5 +1,8 @@
 /**
- * GraphQL resolvers for employee management (ADMIN-only).
+ * GraphQL resolvers for employee management.
+ * `usuarios` query is readable by ADMIN and CAJERO so the cashier can populate
+ * the repartidor picker when assigning home-delivery orders. Mutations remain
+ * ADMIN-only.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 import { GraphQLContext } from '../../middleware/auth.js';
@@ -17,11 +20,11 @@ export const usuarioResolvers = {
      * @author Mario Simbron Gonzalez <simbron420@gmail.com>
      * @param {unknown} _ - Parent (unused).
      * @param {unknown} __ - Arguments (none).
-     * @param {GraphQLContext} ctx - Resolver context; requires ADMIN role.
+     * @param {GraphQLContext} ctx - Resolver context; requires ADMIN or CAJERO role.
      * @returns {Promise<Usuario[]>} List of staff users.
      */
     usuarios: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
-      requireRole(ctx, ['ADMIN']);
+      requireRole(ctx, ['ADMIN', 'CAJERO']);
       return listarEmpleados();
     },
   },
