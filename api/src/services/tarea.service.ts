@@ -6,6 +6,7 @@
 import { PrismaClient, EstatusTarea } from '@prisma/client';
 import { GraphQLError } from 'graphql';
 import { notificarRol, notificarUsuario } from '../lib/push.js';
+import { puedeTransicionarTarea } from './tarea-state-machine.js';
 
 const prisma = new PrismaClient();
 
@@ -121,16 +122,17 @@ export async function actualizarTarea(
     throw new GraphQLError('Tarea no encontrada', { extensions: { code: 'NOT_FOUND' } });
   }
 
-  const terminales: EstatusTarea[] = ['COMPLETADA', 'CANCELADA', 'RECHAZADA'];
-  if (terminales.includes(tarea.estatus)) {
-    throw new GraphQLError('La tarea ya está finalizada', { extensions: { code: 'TAREA_FINALIZADA' } });
-  }
-
-  // Only admin may resolve proposals
-  if (tarea.estatus === 'PROPUESTA' && callerRol !== 'ADMIN') {
-    throw new GraphQLError('Solo el administrador puede aprobar o rechazar propuestas', {
-      extensions: { code: 'FORBIDDEN' },
-    });
+  if (!puedeTransicionarTarea(tarea.estatus, input.estatus, callerRol)) {
+    const terminales: EstatusTarea[] = ['COMPLETADA', 'CANCELADA', 'RECHAZADA'];
+    if (terminales.includes(tarea.estatus)) {
+      throw new GraphQLError('La tarea ya está finalizada', { extensions: { code: 'TAREA_FINALIZADA' } });
+    }
+    if (tarea.estatus === 'PROPUESTA') {
+      throw new GraphQLError('Solo el administrador puede aprobar o rechazar propuestas', {
+        extensions: { code: 'FORBIDDEN' },
+      });
+    }
+    throw new GraphQLError('Transición de estatus no permitida', { extensions: { code: 'INVALID_TRANSITION' } });
   }
 
   const producida = input.cantidadProducida ?? tarea.cantidadSolicitada;

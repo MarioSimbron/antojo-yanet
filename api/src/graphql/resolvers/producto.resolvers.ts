@@ -88,15 +88,16 @@ export const productoResolvers = {
     },
 
     /**
-     * Returns ALL products (active and inactive) for admin management. ADMIN only.
+     * Returns ALL products (active and inactive) for staff management.
+     * ADMIN sees all for full CRUD; MAESTRO_PANADERO sees the list to propose tasks.
      * @author Mario Simbron Gonzalez <simbron420@gmail.com>
      * @param {unknown} _ - Parent (unused).
      * @param {unknown} __ - Arguments (none).
-     * @param {GraphQLContext} ctx - Resolver context; requires the ADMIN role.
+     * @param {GraphQLContext} ctx - Resolver context; requires ADMIN or MAESTRO_PANADERO role.
      * @returns {Promise<Producto[]>} All products sorted by category and name.
      */
     productos: async (_: unknown, __: unknown, ctx: GraphQLContext) => {
-      requireRole(ctx, ['ADMIN']);
+      requireRole(ctx, ['ADMIN', 'MAESTRO_PANADERO']);
       const rows = await prisma.producto.findMany({ orderBy: [{ categoria: 'asc' }, { nombre: 'asc' }] });
       return rows.map((p) => ({ ...p, categoria: toTitleCase(p.categoria) }));
     },
