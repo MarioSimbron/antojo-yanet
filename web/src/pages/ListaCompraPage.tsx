@@ -217,6 +217,10 @@ export default function ListaCompraPage() {
       setSnackMsg('Nombre, cantidad y unidad son obligatorios.');
       return;
     }
+    if (parseFloat(cantidad) <= 0 || isNaN(parseFloat(cantidad))) {
+      setSnackMsg('La cantidad debe ser mayor a 0.');
+      return;
+    }
     await crearItem({
       variables: {
         input: {
@@ -294,6 +298,7 @@ export default function ListaCompraPage() {
               onChange={(e) => setCantidad(e.target.value)}
               size="small"
               sx={{ minWidth: 120 }}
+              inputProps={{ min: 0.001, step: 'any' }}
             />
             <TextField
               label="Unidad *"

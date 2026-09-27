@@ -76,6 +76,10 @@ export async function crearItemCompra(
   },
   auth: { usuarioId: number; rol: string },
 ) {
+  if (input.cantidad <= 0) {
+    throw new GraphQLError('La cantidad debe ser mayor a 0', { extensions: { code: 'CANTIDAD_INVALIDA' } });
+  }
+
   const item = await prisma.listaCompra.create({
     data: {
       nombre: input.nombre,
