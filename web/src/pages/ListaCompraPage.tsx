@@ -43,6 +43,12 @@ const LISTA_COMPRAS_QUERY = gql`
   }
 `;
 
+const INSUMOS_QUERY = gql`
+  query InsumosParaCompra {
+    insumos { id nombre unidad stockActual stockMinimo }
+  }
+`;
+
 const CREAR_ITEM = gql`
   mutation CrearItemCompra($input: CrearItemCompraInput!) {
     crearItemCompra(input: $input) {
@@ -60,6 +66,14 @@ const ACTUALIZAR_ITEM = gql`
 `;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+interface Insumo {
+  id: number;
+  nombre: string;
+  unidad: string;
+  stockActual: number;
+  stockMinimo: number;
+}
 
 interface ItemCompra {
   id: number;
@@ -104,6 +118,9 @@ export default function ListaCompraPage() {
   const { data, loading, refetch } = useQuery<{ listaCompras: ItemCompra[] }>(LISTA_COMPRAS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: insumosData } = useQuery<{ insumos: Insumo[] }>(INSUMOS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
   const [crearItem, { loading: creando }] = useMutation(CREAR_ITEM, {
     onCompleted: () => { refetch(); resetForm(); },
   });
@@ -112,17 +129,34 @@ export default function ListaCompraPage() {
   const [snackMsg, setSnackMsg] = useState('');
 
   // Form state
+  const [insumoId, setInsumoId] = useState<number | ''>('');
   const [nombre, setNombre] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [unidad, setUnidad] = useState('');
   const [prioridad, setPrioridad] = useState('MEDIA');
   const [notas, setNotas] = useState('');
 
+  const insumos = insumosData?.insumos ?? [];
+
   /**
    * Resets the add-item form to its empty state.
    */
   const resetForm = () => {
-    setNombre(''); setCantidad(''); setUnidad(''); setPrioridad('MEDIA'); setNotas('');
+    setInsumoId(''); setNombre(''); setCantidad(''); setUnidad(''); setPrioridad('MEDIA'); setNotas('');
+  };
+
+  /**
+   * When an existing insumo is selected from the dropdown, auto-fills nombre and unidad.
+   * @param {number | ''} id - Selected insumo id or empty string.
+   */
+  const handleSelectInsumo = (id: number | '') => {
+    setInsumoId(id);
+    if (id === '') return;
+    const ins = insumos.find((i) => i.id === id);
+    if (ins) {
+      setNombre(ins.nombre);
+      setUnidad(ins.unidad);
+    }
   };
 
   /**
@@ -141,6 +175,7 @@ export default function ListaCompraPage() {
           unidad: unidad.trim(),
           prioridad,
           notas: notas.trim() || undefined,
+          insumoId: insumoId !== '' ? insumoId : undefined,
         },
       },
     });
@@ -169,6 +204,23 @@ export default function ListaCompraPage() {
           Agregar solicitud
         </Typography>
         <Stack spacing={2}>
+          {insumos.length > 0 && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Vincular a insumo del inventario (opcional)</InputLabel>
+              <Select
+                label="Vincular a insumo del inventario (opcional)"
+                value={insumoId}
+                onChange={(e) => handleSelectInsumo(e.target.value as number | '')}
+              >
+                <MenuItem value="">— Sin vincular —</MenuItem>
+                {insumos.map((ins) => (
+                  <MenuItem key={ins.id} value={ins.id}>
+                    {ins.nombre} (stock: {ins.stockActual} {ins.unidad})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               label="Nombre del insumo *"
@@ -256,6 +308,11 @@ export default function ListaCompraPage() {
                   <TableCell>
                     <Box>
                       {item.nombre}
+                      {item.insumo && (
+                        <Typography variant="caption" sx={{ display: 'block' }} color="success.main">
+                          ↗ actualiza inventario: {item.insumo.nombre}
+                        </Typography>
+                      )}
                       {item.notas && (
                         <Typography variant="caption" sx={{ display: 'block' }} color="text.secondary">
                           {item.notas}

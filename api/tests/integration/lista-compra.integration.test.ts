@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { executeAs } from './helpers/gql.js';
-import { seedTestUsers, cleanupTestData } from './helpers/db.js';
+import { seedTestUsers, cleanupTestData, prismaTest } from './helpers/db.js';
 
 // ── GraphQL operations ─────────────────────────────────────────────────────────
 
@@ -113,6 +113,30 @@ describe('Feature C — Lista de compras', () => {
       (surtidoRes.body as { singleResult: { data: { actualizarItemCompra: { estatus: string } } } })
         .singleResult.data.actualizarItemCompra.estatus
     ).toBe('SURTIDO');
+  });
+
+  it('US-D5: SURTIDO with insumoId increments ingredient stock automatically', async () => {
+    // Create a test ingredient with known stock
+    const insumo = await prismaTest.insumo.create({
+      data: { nombre: '[TEST] Harina para compra', unidad: 'kg', stockActual: 2, stockMinimo: 5 },
+    });
+
+    // Create purchase request linked to that ingredient
+    const createRes = await executeAs('MAESTRO_PANADERO', panaderoId, CREAR_ITEM, {
+      input: { nombre: '[TEST] Harina para compra', cantidad: 10, unidad: 'kg', insumoId: insumo.id },
+    });
+    const itemId = (createRes.body as { singleResult: { data: { crearItemCompra: { id: number } } } })
+      .singleResult.data.crearItemCompra.id;
+
+    // Admin marks it SURTIDO
+    await executeAs('ADMIN', adminId, ACTUALIZAR_ITEM, { id: itemId, estatus: 'SURTIDO' });
+
+    // Stock should now be 2 + 10 = 12
+    const actualizado = await prismaTest.insumo.findUnique({ where: { id: insumo.id } });
+    expect(Number(actualizado?.stockActual)).toBe(12);
+
+    // Cleanup
+    await prismaTest.insumo.delete({ where: { id: insumo.id } });
   });
 
   it('non-admin cannot update item status → FORBIDDEN', async () => {

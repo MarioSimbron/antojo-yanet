@@ -120,7 +120,7 @@ export async function actualizarItemCompra(id: number, estatus: string) {
     });
     // US-D5: automatically restock the linked ingredient if present
     if (item.insumoId) {
-      void reponerInsumo(item.insumoId, Number(item.cantidad));
+      await reponerInsumo(item.insumoId, Number(item.cantidad));
     }
   }
 
