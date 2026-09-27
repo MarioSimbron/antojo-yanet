@@ -536,7 +536,7 @@ export default function DashboardPage() {
       to: '/dashboard',
       label: 'Pedidos activos',
       icon: <ListAltIcon />,
-      roles: ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'],
+      roles: ['ADMIN', 'CAJERO', 'REPARTIDOR'],
     },
     {
       to: '/dashboard/historial',
