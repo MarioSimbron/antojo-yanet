@@ -3,5 +3,6 @@
   "ext": "ts,json,md,env",
   "ignore": ["docs/menu.md"],
   "exec": "tsx src/index.ts",
-  "delay": 300
+  "delay": 500,
+  "legacyWatch": true
 }

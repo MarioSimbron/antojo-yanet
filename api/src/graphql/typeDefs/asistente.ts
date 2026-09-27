@@ -26,6 +26,7 @@ export const asistenteTypeDefs = `#graphql
     datosEncargo: DatosEncargo
     itemsCarrito: [ItemCarritoChat!]
     pedidoId: Int
+    fuentesUsadas: [String!]
   }
 
   enum AccionChat {

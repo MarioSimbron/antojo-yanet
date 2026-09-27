@@ -38,6 +38,7 @@ export interface ItemCarritoChat {
  * @property {Record<string, unknown>} [datosEncargo] - Custom-order data.
  * @property {ItemCarritoChat[]} [itemsCarrito] - Products to add to the cart.
  * @property {number} [pedidoId] - Order the frontend should show.
+ * @property {string[]} [fuentesUsadas] - Knowledge-base files consulted by this tool (buscar_en_menu only).
  */
 interface ResultadoTool {
   resultado: string;
@@ -45,6 +46,7 @@ interface ResultadoTool {
   datosEncargo?: Record<string, unknown>;
   itemsCarrito?: ItemCarritoChat[];
   pedidoId?: number;
+  fuentesUsadas?: string[];
 }
 
 /**
@@ -393,11 +395,15 @@ async function ejecutarTool(
     }
 
     case 'buscar_en_menu': {
-      const chunks = buscarChunksRelevantes(String(args.query ?? ''), 3);
+      // Restrict search to menu.md — other docs (horarios, faq, políticas) are in the
+      // system-prompt RAG context already; searching them here would confuse the LLM
+      // and produce wrong source attribution (e.g. "pan" matching "Panadería" in horarios).
+      const chunks = await buscarChunksRelevantes(String(args.query ?? ''), 3, ['menu.md']);
       const resultado = chunks.map((c) => c.texto).join('\n\n');
       return {
         resultado: resultado || 'No encontré información sobre eso en el menú.',
         accion: 'VER_MENU',
+        fuentesUsadas: chunks.length > 0 ? [...new Set(chunks.map((c) => c.fuente))] : undefined,
       };
     }
 
@@ -467,8 +473,13 @@ export async function procesarMensajeChat(
   datosEncargo?: Record<string, unknown>;
   itemsCarrito?: ItemCarritoChat[];
   pedidoId?: number;
+  fuentesUsadas?: string[];
 }> {
-  const chunks = buscarChunksRelevantes(mensaje, 5);
+  const chunks = await buscarChunksRelevantes(mensaje, 5);
+  // Sources are only attributed when the LLM explicitly calls buscar_en_menu.
+  // The initial RAG lookup primes the system-prompt context but does not constitute
+  // a "source" — the LLM may ignore it or rely on tool calls instead.
+  const fuentesUsadas: string[] = [];
   const contextoRAG = chunks.map((c) => c.texto).join('\n\n');
 
   const esStaff = auth && ROLES_STAFF.has(auth.rol);
@@ -544,7 +555,7 @@ ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar
   const resultado = await llamarGroq(messages, toolsActivos);
 
   if (esError(resultado)) {
-    return { respuesta: resultado.message, accion: 'NINGUNA' };
+    return { respuesta: resultado.message, accion: 'NINGUNA', fuentesUsadas };
   }
 
   const choice = resultado.choices[0];
@@ -566,6 +577,9 @@ ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar
       resultados.push(r);
       toolMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: r.resultado });
     }
+
+    // Collect knowledge-base sources from buscar_en_menu calls (deduplicated)
+    fuentesUsadas.push(...new Set(resultados.flatMap((r) => r.fuentesUsadas ?? [])));
 
     const itemsCarrito = resultados.flatMap((r) => r.itemsCarrito ?? []);
     const accion =
@@ -606,10 +620,10 @@ ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar
         : (resultado2.choices[0].message.content ?? resultados.map((r) => r.resultado).join('\n')),
     );
     agregarMensaje(sessionId, 'assistant', respuesta);
-    return { respuesta, ...efectos };
+    return { respuesta, ...efectos, fuentesUsadas };
   }
 
   const respuesta = limpiarMarkdown(choice.message.content ?? 'No pude procesar tu mensaje.');
   agregarMensaje(sessionId, 'assistant', respuesta);
-  return { respuesta, accion: 'NINGUNA' };
+  return { respuesta, accion: 'NINGUNA', fuentesUsadas };
 }

@@ -1,11 +1,22 @@
-FROM node:20-alpine
+FROM node:20-slim
+
+# node:20-slim is Debian Bookworm — has glibc (required by onnxruntime-node) and
+# OpenSSL 3.x (required by Prisma) out of the box. Alpine (musl) cannot run the
+# pre-built onnxruntime-node binary because it links against ld-linux-x86-64.so.2.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
 
+# Copy source after npm ci so the Linux node_modules are not overwritten by the
+# host's Windows-compiled ones. node_modules is excluded via .dockerignore.
 COPY . .
+
+# Generate the Prisma client for linux-musl AFTER source is in place.
+# Must run here (not before COPY) so it is not overwritten by the COPY layer.
+RUN npx prisma generate
 
 EXPOSE 4000
 

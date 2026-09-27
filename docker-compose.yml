@@ -42,7 +42,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    command: npm run dev
+    # Run pending migrations before starting the dev server so the schema is
+    # always in sync with the code. migrate deploy is idempotent — safe to run
+    # on every restart.
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx scripts/generateMenu.ts && npm run dev"
 
   web:
     build:

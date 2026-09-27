@@ -21,6 +21,7 @@ const CHAT_MUTATION = gql`
       datosEncargo { producto fechaDeseada personas detalles }
       itemsCarrito { productoId nombre precio cantidad esEncargo imagenUrl }
       pedidoId
+      fuentesUsadas
     }
   }
 `;
@@ -30,10 +31,12 @@ const CHAT_MUTATION = gql`
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @property {'user' | 'assistant'} rol - Who sent the message.
  * @property {string} texto - Message text.
+ * @property {string[]} [fuentes] - RAG source files used to answer (assistant only).
  */
 interface Mensaje {
   rol: 'user' | 'assistant';
   texto: string;
+  fuentes?: string[];
 }
 
 /**
@@ -116,7 +119,10 @@ export default function ChatWidget() {
     try {
       const { data } = await enviarMensaje({ variables: { mensaje: texto, sessionId } });
       const r = data?.chatAsistente;
-      setMensajes((m) => [...m, { rol: 'assistant', texto: r.respuesta }]);
+      setMensajes((m) => [
+        ...m,
+        { rol: 'assistant', texto: r.respuesta, fuentes: r.fuentesUsadas ?? [] },
+      ]);
 
       // Navigate in the background; the panel stays open so the conversation continues.
       if (r.accion === 'ABRIR_CHECKOUT') {
@@ -170,22 +176,31 @@ export default function ChatWidget() {
           <Stack spacing={1.5} sx={{ p: 2, height: 320, overflowY: 'auto', overflowX: 'hidden', bgcolor: 'background.default' }}>
             {mensajes.map((m, i) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: m.rol === 'user' ? 'flex-end' : 'flex-start' }}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    maxWidth: '80%',
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 2.5,
-                    ...(m.rol === 'user'
-                      ? { bgcolor: 'primary.main', color: 'primary.contrastText', borderBottomRightRadius: 4 }
-                      : { bgcolor: 'background.paper', borderBottomLeftRadius: 4 }),
-                  }}
-                >
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                    {m.texto}
-                  </Typography>
-                </Paper>
+                <Box sx={{ maxWidth: '80%', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: 2.5,
+                      ...(m.rol === 'user'
+                        ? { bgcolor: 'primary.main', color: 'primary.contrastText', borderBottomRightRadius: 4 }
+                        : { bgcolor: 'background.paper', borderBottomLeftRadius: 4 }),
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                      {m.texto}
+                    </Typography>
+                  </Paper>
+                  {m.rol === 'assistant' && m.fuentes && m.fuentes.length > 0 && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: 'text.disabled', pl: 0.5 }}
+                    >
+                      Fuentes: {m.fuentes.map((f) => f.replace('.md', '')).join(' · ')}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             ))}
             {cargando && (

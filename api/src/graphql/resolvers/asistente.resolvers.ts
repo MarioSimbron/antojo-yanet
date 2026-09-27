@@ -26,18 +26,15 @@ export const asistenteResolvers = {
       { mensaje, sessionId }: { mensaje: string; sessionId: string },
       ctx: GraphQLContext,
     ) => {
-      const { respuesta, accion, datosEncargo, itemsCarrito, pedidoId } = await procesarMensajeChat(
-        mensaje,
-        sessionId,
-        ctx.usuario,
-        ctx.guestToken,
-      );
+      const { respuesta, accion, datosEncargo, itemsCarrito, pedidoId, fuentesUsadas } =
+        await procesarMensajeChat(mensaje, sessionId, ctx.usuario, ctx.guestToken);
       return {
         respuesta,
         accion,
         datosEncargo: datosEncargo ?? null,
         itemsCarrito: itemsCarrito ?? null,
         pedidoId: pedidoId ?? null,
+        fuentesUsadas: fuentesUsadas ?? null,
       };
     },
   },
