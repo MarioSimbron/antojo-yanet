@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    exclude: ['node_modules', 'tests/integration/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
@@ -21,6 +22,7 @@ export default defineConfig({
         'src/lib/groq.ts': { lines: 70, functions: 70, branches: 70 },
         'src/services/calcular-totales.ts': { lines: 70, functions: 70, branches: 70 },
         'src/services/pedido-state-machine.ts': { lines: 70, functions: 70, branches: 70 },
+        'src/services/tarea-state-machine.ts': { lines: 70, functions: 70, branches: 70 },
       },
       include: ['src/**/*.ts'],
     },

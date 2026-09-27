@@ -276,7 +276,7 @@
 
 ### Rol de chocolate
 - **Precio:** $30 MXN
-- **Disponibilidad:** Disponible
+- **Disponibilidad:** Sin stock
 - Rol con relleno de crema de chocolate
 
 ### Rol de limón

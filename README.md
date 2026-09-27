@@ -1,6 +1,6 @@
 # Antojo de Yanet
 
-Plataforma completa de pedidos y encargos para una panadería artesanal. Incluye tienda web pública, chatbot con IA (DulceBot), seguimiento de pedidos en tiempo real via WebSockets, dashboard de operaciones por rol, notificaciones push y sistema de puntos de lealtad.
+Plataforma completa de pedidos y encargos para una panadería artesanal. Incluye tienda web pública, chatbot con IA (DulceBot), seguimiento de pedidos en tiempo real via WebSockets, dashboard de operaciones por rol, centro de notificaciones in-app (con persistencia en BD para usuarios y guests), notificaciones push Web Push y sistema de puntos de lealtad.
 
 ---
 
@@ -378,6 +378,7 @@ Copia `publicKey` en `VAPID_PUBLIC_KEY` y `privateKey` en `VAPID_PRIVATE_KEY` de
 | `FacturaCFDI` | `factura_cfdi` | Datos de facturación asociados a un pedido |
 | `TareaProduccion` | `tarea_produccion` | Tareas asignadas al maestro panadero |
 | `PushSubscription` | `push_subscription` | Suscripciones Web Push de usuarios |
+| `Notificacion` | `notificacion` | Notificaciones persistidas para usuarios autenticados y guests (campo `usuarioId` o `guestToken`) |
 | `Cupon` | `cupon` | Cupones de descuento con saldo disponible |
 
 ### Estatus de pedido (máquina de estados)
@@ -516,6 +517,7 @@ Las transiciones se validan doblemente: por la tabla de permisos del rol y por l
 - **Gestión de productos** — CRUD completo con subida de imágenes
 - **Gestión de empleados** — creación y edición de usuarios staff (solo ADMIN)
 - **Tareas de producción** — ADMIN crea tareas, MAESTRO_PANADERO las actualiza; notificación push al asignar
+- **Centro de notificaciones** — campana en el navbar con badge de no leídas; lista las últimas 50 notificaciones persistidas en BD; tiempo real via Socket.IO; disponible para staff, clientes autenticados y guests
 
 ---
 

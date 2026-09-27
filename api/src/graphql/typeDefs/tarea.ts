@@ -4,10 +4,12 @@
  */
 export const tareaTypeDefs = `#graphql
   enum EstatusTarea {
+    PROPUESTA
     PENDIENTE
     EN_PROCESO
     COMPLETADA
     CANCELADA
+    RECHAZADA
   }
 
   type TareaProduccion {

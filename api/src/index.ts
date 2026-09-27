@@ -10,29 +10,8 @@ import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
-import { mergeTypeDefs, mergeResolvers } from '@graphql-tools/merge';
-
-import { usuarioTypeDefs } from './graphql/typeDefs/usuario.js';
-import { authTypeDefs } from './graphql/typeDefs/auth.js';
-import { productoTypeDefs } from './graphql/typeDefs/producto.js';
-import { pedidoTypeDefs } from './graphql/typeDefs/pedido.js';
-import { asistenteTypeDefs } from './graphql/typeDefs/asistente.js';
-import { tareaTypeDefs } from './graphql/typeDefs/tarea.js';
-import { notificacionTypeDefs } from './graphql/typeDefs/notificacion.js';
-import { inventarioTypeDefs } from './graphql/typeDefs/inventario.js';
-import { listaCompraTypeDefs } from './graphql/typeDefs/listaCompra.js';
-
-import { authResolvers } from './graphql/resolvers/auth.resolvers.js';
-import { usuarioResolvers } from './graphql/resolvers/usuario.resolvers.js';
-import { productoResolvers } from './graphql/resolvers/producto.resolvers.js';
-import { pedidoResolvers } from './graphql/resolvers/pedido.resolvers.js';
-import { asistenteResolvers } from './graphql/resolvers/asistente.resolvers.js';
-import { tareaResolvers } from './graphql/resolvers/tarea.resolvers.js';
-import { notificacionResolvers } from './graphql/resolvers/notificacion.resolvers.js';
-import { inventarioResolvers } from './graphql/resolvers/inventario.resolvers.js';
-import { listaCompraResolvers } from './graphql/resolvers/listaCompra.resolvers.js';
+import { buildApolloServer } from './graphql/createServer.js';
 
 import { buildContext } from './middleware/auth.js';
 import { iniciarSocketIO } from './services/socket.service.js';
@@ -42,48 +21,6 @@ import { PrismaClient } from '@prisma/client';
 import { verificarToken } from './lib/jwt.js';
 
 const prismaGlobal = new PrismaClient();
-
-/**
- * Root GraphQL types that every module extends with `extend type Query/Mutation`.
- * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- */
-const baseTypeDefs = `#graphql
-  type Query { _empty: String }
-  type Mutation { _empty: String }
-`;
-
-/**
- * Full GraphQL schema built by merging the base types with every module's typeDefs.
- * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- */
-const typeDefs = mergeTypeDefs([
-  baseTypeDefs,
-  usuarioTypeDefs,
-  authTypeDefs,
-  productoTypeDefs,
-  pedidoTypeDefs,
-  asistenteTypeDefs,
-  tareaTypeDefs,
-  notificacionTypeDefs,
-  inventarioTypeDefs,
-  listaCompraTypeDefs,
-]);
-
-/**
- * Resolver map built by merging every module's resolvers.
- * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- */
-const resolvers = mergeResolvers([
-  authResolvers,
-  usuarioResolvers,
-  productoResolvers,
-  pedidoResolvers,
-  asistenteResolvers,
-  tareaResolvers,
-  notificacionResolvers,
-  inventarioResolvers,
-  listaCompraResolvers,
-]);
 
 /**
  * Bootstraps the server: configures Express middleware and the /health endpoint, mounts
@@ -179,7 +116,7 @@ async function main() {
     }
   });
 
-  const apolloServer = new ApolloServer({ typeDefs, resolvers });
+  const apolloServer = buildApolloServer();
   await apolloServer.start();
 
   app.use(
