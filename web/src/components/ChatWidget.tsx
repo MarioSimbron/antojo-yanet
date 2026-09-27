@@ -9,9 +9,10 @@ import ChatIcon from '@mui/icons-material/Chat';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import { useCarritoStore } from '../store/carrito.store';
+import { useAuthStore } from '../store/auth.store';
 
 /**
- * GraphQL mutation that sends a message to the Yanet assistant.
+ * GraphQL mutation that sends a message to the DulceBot assistant.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 const CHAT_MUTATION = gql`
@@ -59,6 +60,49 @@ interface ItemCarritoChat {
 }
 
 /**
+ * Returns the opening message DulceBot shows when the chat panel is first opened.
+ * The message is tailored to the user's role so staff immediately know what they
+ * can ask the assistant, while guests get a warm shopping welcome.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string | undefined} rol - The logged-in user's role, or undefined for guest.
+ * @param {string | undefined} nombre - The logged-in user's name, for a personal greeting.
+ * @returns {string} The greeting message.
+ */
+function getSaludo(rol: string | undefined, nombre: string | undefined): string {
+  const primerNombre = nombre?.split(' ')[0] ?? '';
+  switch (rol) {
+    case 'REPARTIDOR':
+      return `Hola${primerNombre ? `, ${primerNombre}` : ''}. Soy DulceBot. Puedo mostrarte tus entregas asignadas, ayudarte a actualizar el estatus de un pedido o consultar la dirección de entrega. ¿Que necesitas?`;
+    case 'MAESTRO_PANADERO':
+      return `Hola${primerNombre ? `, ${primerNombre}` : ''}. Soy DulceBot. Puedo mostrarte tus tareas de producción, consultar el stock de ingredientes o ayudarte a organizar tu turno. ¿Por donde empezamos?`;
+    case 'CAJERO':
+      return `Hola${primerNombre ? `, ${primerNombre}` : ''}. Soy DulceBot. Puedo darte un resumen de pedidos activos, mostrarte cuales están listos para entrega a domicilio, consultar disponibilidad de productos o ayudarte a gestionar el estatus de un pedido. ¿Que necesitas?`;
+    case 'ADMIN':
+      return `Hola${primerNombre ? `, ${primerNombre}` : ''}. Soy DulceBot. Tienes acceso completo: reportes de ventas, pedidos activos, tareas de producción, stock, encargos y más. ¿Con que te ayudo?`;
+    case 'CLIENTE':
+      return `Hola${primerNombre ? `, ${primerNombre}` : ''}. Soy DulceBot, la asistente de Antojo de Yanet. Puedo ayudarte a encontrar pan, agregar productos a tu carrito o iniciar un encargo especial. ¿Que se te antoja hoy?`;
+    default:
+      return '¡Hola! Soy DulceBot, la asistente de Antojo de Yanet. Puedo ayudarte a ver el menu, agregar pan a tu carrito o hacer un encargo especial. ¿En que te puedo ayudar?';
+  }
+}
+
+/**
+ * Returns a context-aware placeholder for the chat input field.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string | undefined} rol - The logged-in user's role.
+ * @returns {string} Placeholder text.
+ */
+function getPlaceholder(rol: string | undefined): string {
+  switch (rol) {
+    case 'REPARTIDOR':   return 'ej. ¿Cuáles son mis entregas de hoy?';
+    case 'MAESTRO_PANADERO': return 'ej. ¿Qué tareas tengo pendientes?';
+    case 'CAJERO':       return 'ej. ¿Cuántos pedidos hay listos?';
+    case 'ADMIN':        return 'ej. ¿Cuáles son las ventas de esta semana?';
+    default:             return 'ej. ¿Qué conchas tienen hoy?';
+  }
+}
+
+/**
  * Returns the chat session ID stored in localStorage, creating a UUID v4 on first use.
  * Falls back to a fresh (non-persisted) UUID if localStorage is unavailable.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
@@ -78,23 +122,32 @@ function getSessionId(): string {
 }
 
 /**
- * Floating chat button (MUI Fab) and animated panel for talking to DulceBot. Sends messages through
- * the chatAsistente mutation, shows a typing indicator and navigates according to the
- * returned action (ABRIR_CHECKOUT, VER_PEDIDO, VER_MENU) while keeping the panel open;
- * it only closes when the user clicks the close button or the Fab.
+ * Floating chat button (MUI Fab) and animated panel for talking to DulceBot.
+ * Sends messages through the chatAsistente mutation, shows a typing indicator and
+ * navigates according to the returned action (AGREGAR_CARRITO, VER_PEDIDO, VER_MENU).
+ * The greeting and input placeholder adapt automatically to the user's role.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The chat widget.
  */
 export default function ChatWidget() {
+  const usuario = useAuthStore((s) => s.usuario);
+  const rol = usuario?.rol;
+  const nombre = usuario?.nombre;
+
   const [abierto, setAbierto] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([
-    { rol: 'assistant', texto: '¡Hola! Soy DulceBot, la asistente de Antojo de Yanet. ¿En qué te puedo ayudar?' },
+    { rol: 'assistant', texto: getSaludo(rol, nombre) },
   ]);
   const [input, setInput] = useState('');
   const [cargando, setCargando] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const sessionId = getSessionId();
+
+  // Reset greeting when the logged-in user changes (login / logout).
+  useEffect(() => {
+    setMensajes([{ rol: 'assistant', texto: getSaludo(rol, nombre) }]);
+  }, [rol, nombre]);
 
   const [enviarMensaje] = useMutation(CHAT_MUTATION);
   const agregarItem = useCarritoStore((s) => s.agregarItem);
@@ -104,8 +157,8 @@ export default function ChatWidget() {
   }, [mensajes, abierto]);
 
   /**
-   * Sends the current input to the assistant, appends the reply (or a friendly error
-   * message) to the conversation and runs the returned UI action.
+   * Sends the current input to the assistant, appends the reply to the conversation
+   * and runs the returned UI action (add to cart, navigate, etc.).
    * @author Mario Simbron Gonzalez <simbron420@gmail.com>
    * @returns {Promise<void>}
    */
@@ -124,16 +177,10 @@ export default function ChatWidget() {
         { rol: 'assistant', texto: r.respuesta, fuentes: r.fuentesUsadas ?? [] },
       ]);
 
-      // Navigate in the background; the panel stays open so the conversation continues.
-      if (r.accion === 'ABRIR_CHECKOUT') {
-        navigate('/checkout');
-      } else if (r.accion === 'VER_PEDIDO' && r.pedidoId) {
-        navigate(`/seguimiento/${r.pedidoId}`);
-      } else if (r.accion === 'VER_MENU') {
-        navigate('/menu');
-      }
+      if (r.accion === 'ABRIR_CHECKOUT') navigate('/checkout');
+      else if (r.accion === 'VER_PEDIDO' && r.pedidoId) navigate(`/seguimiento/${r.pedidoId}`);
+      else if (r.accion === 'VER_MENU') navigate('/menu');
 
-      // Products Yanet added are put in the cart; the customer confirms in checkout.
       for (const item of (r.itemsCarrito ?? []) as ItemCarritoChat[]) {
         agregarItem(
           {
@@ -160,12 +207,18 @@ export default function ChatWidget() {
     <Box sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1.5 }}>
       <Grow in={abierto} unmountOnExit style={{ transformOrigin: 'bottom right' }}>
         <Paper elevation={8} sx={{ width: 340, maxWidth: 'calc(100vw - 48px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 3 }}>
+
+          {/* Header */}
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', bgcolor: 'primary.main', color: 'primary.contrastText', px: 2, py: 1.5 }}>
             <Avatar src="/dulcebot-avatar.webp" alt="DulceBot" sx={{ width: 36, height: 36 }} />
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant="subtitle2">DulceBot</Typography>
               <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                Asistente de la panadería
+                {rol === 'REPARTIDOR' && 'Asistente de entregas'}
+                {rol === 'MAESTRO_PANADERO' && 'Asistente de produccion'}
+                {rol === 'CAJERO' && 'Asistente de caja'}
+                {rol === 'ADMIN' && 'Asistente de administracion'}
+                {(!rol || rol === 'CLIENTE') && 'Asistente de la panaderia'}
               </Typography>
             </Box>
             <IconButton size="small" color="inherit" onClick={() => setAbierto(false)} aria-label="Cerrar chat">
@@ -173,6 +226,7 @@ export default function ChatWidget() {
             </IconButton>
           </Stack>
 
+          {/* Messages */}
           <Stack spacing={1.5} sx={{ p: 2, height: 320, overflowY: 'auto', overflowX: 'hidden', bgcolor: 'background.default' }}>
             {mensajes.map((m, i) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: m.rol === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -193,10 +247,7 @@ export default function ChatWidget() {
                     </Typography>
                   </Paper>
                   {m.rol === 'assistant' && m.fuentes && m.fuentes.length > 0 && (
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.disabled', pl: 0.5 }}
-                    >
+                    <Typography variant="caption" sx={{ color: 'text.disabled', pl: 0.5 }}>
                       Fuentes: {m.fuentes.map((f) => f.replace('.md', '')).join(' · ')}
                     </Typography>
                   )}
@@ -206,19 +257,23 @@ export default function ChatWidget() {
             {cargando && (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', color: 'text.secondary' }}>
                 <CircularProgress size={14} color="inherit" />
-                <Typography variant="caption">DulceBot está escribiendo…</Typography>
+                <Typography variant="caption">DulceBot esta escribiendo...</Typography>
               </Stack>
             )}
             <div ref={bottomRef} />
           </Stack>
 
           <Divider />
+
+          {/* Input */}
           <Stack direction="row" spacing={1} sx={{ p: 1.5 }}>
             <TextField
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleEnviar()}
-              placeholder="Escribe tu mensaje…"
+              placeholder={getPlaceholder(rol)}
+              size="small"
+              fullWidth
               autoFocus
             />
             <IconButton color="primary" onClick={handleEnviar} disabled={cargando || !input.trim()} aria-label="Enviar">

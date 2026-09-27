@@ -206,9 +206,12 @@ async function computarEmbeddingsPendientes(): Promise<void> {
  * chunks that happen to be the "least bad" match for off-topic queries (e.g.
  * greetings) so the system prompt stays clean and sources are not shown for
  * irrelevant messages.
+ * 0.25 is the empirical sweet spot for this multilingual MiniLM model: short
+ * single-word product queries ("conchas") still clear the bar while genuine
+ * off-topic messages (greetings, small talk) stay below it.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
-const UMBRAL_SEMANTICO = 0.40;
+const UMBRAL_SEMANTICO = 0.25;
 
 /**
  * Returns the chunks most relevant to a query. Uses cosine similarity over
