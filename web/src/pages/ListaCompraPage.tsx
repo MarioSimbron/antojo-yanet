@@ -1,6 +1,8 @@
 /**
  * Purchase-list page where staff add raw-material purchase requests and admins
  * track and fulfill them. Staff see only their own submissions; admins see all.
+ * Includes an inline "create insumo" dialog so users can register a new ingredient
+ * without leaving the page (auto-selects the new insumo after creation).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The purchase-list management page.
  */
@@ -12,6 +14,10 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   InputLabel,
@@ -61,6 +67,14 @@ const ACTUALIZAR_ITEM = gql`
   mutation ActualizarItemCompra($id: Int!, $estatus: String!) {
     actualizarItemCompra(id: $id, estatus: $estatus) {
       id estatus
+    }
+  }
+`;
+
+const CREAR_INSUMO = gql`
+  mutation CrearInsumoDesdeCompra($input: CrearInsumoInput!) {
+    crearInsumo(input: $input) {
+      id nombre unidad stockActual stockMinimo
     }
   }
 `;
@@ -118,13 +132,29 @@ export default function ListaCompraPage() {
   const { data, loading, refetch } = useQuery<{ listaCompras: ItemCompra[] }>(LISTA_COMPRAS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
-  const { data: insumosData } = useQuery<{ insumos: Insumo[] }>(INSUMOS_QUERY, {
+  const { data: insumosData, refetch: refetchInsumos } = useQuery<{ insumos: Insumo[] }>(INSUMOS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
   const [crearItem, { loading: creando }] = useMutation(CREAR_ITEM, {
     onCompleted: () => { refetch(); resetForm(); },
   });
   const [actualizarItem] = useMutation(ACTUALIZAR_ITEM, { onCompleted: () => refetch() });
+
+  const [crearInsumo, { loading: creandoInsumo }] = useMutation<{
+    crearInsumo: Insumo;
+  }>(CREAR_INSUMO, {
+    onCompleted: (data) => {
+      const nuevo = data.crearInsumo;
+      // Optimistically add new insumo to the cached list and auto-select it
+      void refetchInsumos();
+      setInsumoId(nuevo.id);
+      setNombre(nuevo.nombre);
+      setUnidad(nuevo.unidad);
+      setNuevoInsumoOpen(false);
+      resetNuevoInsumo();
+    },
+    onError: (err) => setSnackMsg(err.message),
+  });
 
   const [snackMsg, setSnackMsg] = useState('');
 
@@ -136,7 +166,20 @@ export default function ListaCompraPage() {
   const [prioridad, setPrioridad] = useState('MEDIA');
   const [notas, setNotas] = useState('');
 
+  // "Crear insumo nuevo" dialog state
+  const [nuevoInsumoOpen, setNuevoInsumoOpen] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevoUnidad, setNuevoUnidad] = useState('');
+  const [nuevoStockMinimo, setNuevoStockMinimo] = useState('');
+
   const insumos = insumosData?.insumos ?? [];
+
+  /**
+   * Resets the new-insumo dialog fields to empty.
+   */
+  const resetNuevoInsumo = () => {
+    setNuevoNombre(''); setNuevoUnidad(''); setNuevoStockMinimo('');
+  };
 
   /**
    * Resets the add-item form to its empty state.
@@ -204,23 +247,31 @@ export default function ListaCompraPage() {
           Agregar solicitud
         </Typography>
         <Stack spacing={2}>
-          {insumos.length > 0 && (
-            <FormControl size="small" fullWidth>
-              <InputLabel>Vincular a insumo del inventario (opcional)</InputLabel>
-              <Select
-                label="Vincular a insumo del inventario (opcional)"
-                value={insumoId}
-                onChange={(e) => handleSelectInsumo(e.target.value as number | '')}
-              >
-                <MenuItem value="">— Sin vincular —</MenuItem>
-                {insumos.map((ins) => (
-                  <MenuItem key={ins.id} value={ins.id}>
-                    {ins.nombre} (stock: {ins.stockActual} {ins.unidad})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
+          <FormControl size="small" fullWidth>
+            <InputLabel>Vincular a insumo del inventario (opcional)</InputLabel>
+            <Select<number | '' | '__nuevo__'>
+              label="Vincular a insumo del inventario (opcional)"
+              value={insumoId}
+              onChange={(e) => {
+                if (e.target.value === '__nuevo__') {
+                  setNuevoInsumoOpen(true);
+                } else {
+                  handleSelectInsumo(e.target.value as number | '');
+                }
+              }}
+            >
+              <MenuItem value="">— Sin vincular —</MenuItem>
+              {insumos.map((ins) => (
+                <MenuItem key={ins.id} value={ins.id}>
+                  {ins.nombre} (stock: {ins.stockActual} {ins.unidad})
+                </MenuItem>
+              ))}
+              <Divider />
+              <MenuItem value="__nuevo__" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                ＋ Crear insumo nuevo…
+              </MenuItem>
+            </Select>
+          </FormControl>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               label="Nombre del insumo *"
@@ -357,6 +408,67 @@ export default function ListaCompraPage() {
           </Table>
         </TableContainer>
       )}
+
+      {/* ── Create new insumo dialog ──────────────────────────────── */}
+      <Dialog
+        open={nuevoInsumoOpen}
+        onClose={() => { setNuevoInsumoOpen(false); resetNuevoInsumo(); }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Crear nuevo insumo</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Nombre del insumo *"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+              size="small"
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label="Unidad *"
+              value={nuevoUnidad}
+              onChange={(e) => setNuevoUnidad(e.target.value)}
+              size="small"
+              fullWidth
+              placeholder="kg, litros, piezas…"
+            />
+            <TextField
+              label="Stock mínimo"
+              type="number"
+              value={nuevoStockMinimo}
+              onChange={(e) => setNuevoStockMinimo(e.target.value)}
+              size="small"
+              fullWidth
+              placeholder="0"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setNuevoInsumoOpen(false); resetNuevoInsumo(); }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            disabled={creandoInsumo || !nuevoNombre.trim() || !nuevoUnidad.trim()}
+            onClick={() => {
+              void crearInsumo({
+                variables: {
+                  input: {
+                    nombre: nuevoNombre.trim(),
+                    unidad: nuevoUnidad.trim(),
+                    stockMinimo: nuevoStockMinimo ? parseFloat(nuevoStockMinimo) : 0,
+                  },
+                },
+              });
+            }}
+          >
+            {creandoInsumo ? 'Creando…' : 'Crear y vincular'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={Boolean(snackMsg)}
