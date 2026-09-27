@@ -736,8 +736,16 @@ El sistema de búsqueda maneja variaciones de nombre (quita "de", stop-words) �
 ${buildRegla2(toolsActivos)}
 
 == REGLA #3 — AMBIGÜEDAD (CRÍTICA) ==
-Cuando agregar_al_carrito devuelva "X es ambiguo; pregunta al cliente cuál de estos quiere: A, B, C",
-copia LITERALMENTE esa lista. NUNCA agregues, inventes ni parafrasees opciones.
+Cuando agregar_al_carrito devuelva "X es ambiguo; pregunta al cliente cuál de estos quiere: A, B, C":
+1. Muestra la lista COMPLETA de opciones, un nombre por línea con guión.
+2. PROHIBIDO decir "¿Cuál de estas opciones quieres?" sin mostrar los nombres antes.
+3. El cliente no puede ver el resultado interno de la herramienta — si no los escribes tú, nunca los verá.
+Ejemplo de respuesta correcta:
+  "Tenemos varias opciones de galleta:
+  - Galleta choco chips
+  - Galleta mantequilla
+  - Galleta avena
+  ¿Cuál quieres?"
 
 == REGLA #4 — ENCARGOS ==
 Cuando uses iniciar_encargo: NUNCA digas que el encargo quedó "registrado" o "confirmado".
@@ -801,7 +809,14 @@ ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar
     const toolResultsText = toolMessages.map((m) => (typeof m.content === 'string' ? m.content : '')).join('\n');
     const hayAmbiguedad = toolResultsText.includes('es ambiguo; pregunta al cliente cuál de estos quiere:');
     const recordatorioAmbiguedad: import('../lib/groq.js').GroqMessage[] = hayAmbiguedad
-      ? [{ role: 'system', content: 'RECORDATORIO: muestra al cliente ÚNICAMENTE las opciones textuales de la herramienta. No inventes ni agregues ninguna opción adicional.' }]
+      ? [{
+          role: 'system',
+          content:
+            'INSTRUCCIÓN OBLIGATORIA: La herramienta devolvió una lista de opciones. ' +
+            'DEBES mostrar en tu respuesta TODOS los nombres de la lista, uno por línea con guión. ' +
+            'El cliente NO puede ver el resultado de la herramienta — si no los listas tú, nunca los verá. ' +
+            'PROHIBIDO decir "¿Cuál de estas opciones quieres?" sin mostrar la lista completa antes.',
+        }]
       : [];
 
     const messages2: import('../lib/groq.js').GroqMessage[] = [
