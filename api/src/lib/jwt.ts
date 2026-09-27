@@ -18,7 +18,7 @@ export interface TokenPayload {
 
 const accessSecret = () => process.env.JWT_SECRET ?? 'dev_secret_access';
 const refreshSecret = () => process.env.JWT_REFRESH_SECRET ?? 'dev_secret_refresh';
-const accessExpires = () => process.env.JWT_ACCESS_EXPIRES ?? '15m';
+const accessExpires = () => process.env.JWT_ACCESS_EXPIRES ?? '4h';
 const refreshExpires = () => process.env.JWT_REFRESH_EXPIRES ?? '7d';
 
 /**

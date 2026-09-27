@@ -1,8 +1,9 @@
 /**
  * Apollo Client configuration for the GraphQL API. Includes an error link that
  * automatically refreshes an expired access token and retries the failed operation.
- * When the refresh itself fails, the error is propagated to the caller so components
- * with error handlers (e.g. Snackbar) can surface feedback to the user.
+ * A retry-guard context flag prevents infinite refresh loops. When the refresh
+ * itself fails the user is logged out; no error is propagated to the component
+ * while a refresh/retry is in flight, so no UNAUTHENTICATED flash appears in the UI.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 import { ApolloClient, InMemoryCache, Observable, createHttpLink } from '@apollo/client';
@@ -82,8 +83,12 @@ let activeRefresh: Promise<string | null> | null = null;
 
 /**
  * Error link: intercepts UNAUTHENTICATED GraphQL errors, attempts a silent token
- * refresh and retries the original operation with the new access token. If the refresh
- * fails the user is logged out and the operation completes without a retry.
+ * refresh and retries the original operation with the new access token.
+ * - Already-retried operations are skipped (retry-guard via `x-auth-retry` context)
+ *   to prevent infinite refresh loops.
+ * - While refresh/retry is in flight no error reaches Apollo's error state, so the
+ *   UI shows a loading state rather than a transient UNAUTHENTICATED flash.
+ * - If the refresh fails the user is logged out silently (no error emitted).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  */
 const errorLink = onError(({ graphQLErrors, operation, forward }) => {
@@ -91,6 +96,10 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
     (e) => e.extensions?.code === 'UNAUTHENTICATED',
   );
   if (!isUnauthenticated) return;
+
+  // Skip operations that already went through a refresh-retry cycle to avoid loops.
+  const { 'x-auth-retry': alreadyRetried } = operation.getContext() as { 'x-auth-retry'?: boolean };
+  if (alreadyRetried) return;
 
   return new Observable((observer) => {
     if (!activeRefresh) {
@@ -101,24 +110,25 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
 
     activeRefresh.then((newToken) => {
       if (!newToken) {
-        // Refresh failed — user is already logged out via logout() inside tryRefreshToken.
-        // Propagate an error so components with Snackbars can surface feedback.
-        observer.error(new Error('SESSION_EXPIRED'));
+        // Refresh failed — user already logged out inside tryRefreshToken. Complete
+        // silently so components stay in loading state until the logout redirect fires.
+        observer.complete();
         return;
       }
-      // Attach the fresh token to the retried operation
+      // Attach the fresh token and mark the operation as retried.
       operation.setContext(({ headers = {} }: { headers: Record<string, string> }) => ({
-        headers: {
-          ...headers,
-          authorization: `Bearer ${newToken}`,
-        },
+        headers: { ...headers, authorization: `Bearer ${newToken}` },
+        'x-auth-retry': true,
       }));
       forward(operation).subscribe({
         next: observer.next.bind(observer),
         error: observer.error.bind(observer),
         complete: observer.complete.bind(observer),
       });
-    }).catch((err: unknown) => observer.error(err instanceof Error ? err : new Error('Network error')));
+    }).catch(() => {
+      // Network-level error during refresh — complete silently, logout already fired.
+      observer.complete();
+    });
   });
 });
 
