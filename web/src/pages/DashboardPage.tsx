@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Link as RouterLink, Navigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
+  DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl,
   InputLabel, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader,
   MenuItem, Paper, Select, Snackbar, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Typography,
@@ -34,7 +35,7 @@ import ListaCompraPage from './ListaCompraPage';
 const PEDIDOS_QUERY = gql`
   query Pedidos($estatus: String) {
     pedidos(estatus: $estatus) {
-      id estatus nombreCliente tipoEntrega total createdAt direccion
+      id estatus nombreCliente telefono email tipoEntrega total createdAt direccion
       cancelacionMotivo repartidorId
       items { id esEncargo cantidad producto { nombre } }
     }
@@ -139,6 +140,7 @@ function PedidosActivos() {
   const { usuario } = useAuthStore();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [repartidorPorPedido, setRepartidorPorPedido] = useState<Record<number, number>>({});
+  const [cancelConfirm, setCancelConfirm] = useState<number | null>(null);
 
   const puedeAsignar = usuario?.rol === 'ADMIN' || usuario?.rol === 'CAJERO';
 
@@ -213,11 +215,16 @@ function PedidosActivos() {
                 </Box>
                 <EstatusChip estatus={p.estatus as string} />
               </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: p.direccion ? 0.5 : 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 {p.tipoEntrega as string} · ${p.total as string} MXN
               </Typography>
+              {(p.telefono as string | null) && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.25 }}>
+                  📞 {p.telefono as string}{(p.email as string | null) ? ` · ✉️ ${p.email as string}` : ''}
+                </Typography>
+              )}
               {(p.direccion as string | null) && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                   <LocalShippingIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
                   {p.direccion as string}
                 </Typography>
@@ -297,8 +304,15 @@ function PedidosActivos() {
                     key={est}
                     variant="outlined"
                     size="small"
+                    color={est === 'CANCELADO' ? 'error' : 'primary'}
                     endIcon={<ArrowForwardIcon />}
-                    onClick={() => actualizarEstatus({ variables: { pedidoId: p.id, estatus: est } })}
+                    onClick={() => {
+                      if (est === 'CANCELADO') {
+                        setCancelConfirm(p.id as number);
+                      } else {
+                        void actualizarEstatus({ variables: { pedidoId: p.id, estatus: est } });
+                      }
+                    }}
                   >
                     {etiquetaEstatus(est)}
                   </Button>
@@ -308,6 +322,30 @@ function PedidosActivos() {
           </Card>
         ))}
       </Stack>
+      {/* Confirmation dialog before cancelling an order */}
+      <Dialog open={cancelConfirm !== null} onClose={() => setCancelConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>¿Cancelar pedido #{cancelConfirm}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Esta acción no se puede deshacer. El stock reservado se devolverá automáticamente.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelConfirm(null)}>Volver</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (cancelConfirm === null) return;
+              void actualizarEstatus({ variables: { pedidoId: cancelConfirm, estatus: 'CANCELADO' } });
+              setCancelConfirm(null);
+            }}
+          >
+            Sí, cancelar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={5000}
