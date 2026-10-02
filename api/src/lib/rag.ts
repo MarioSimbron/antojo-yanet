@@ -174,8 +174,11 @@ export async function cargarDocumentos(): Promise<Chunk[]> {
   }
 
   indice = nuevos;
-  // Compute embeddings in the background; doesn't block the server startup
-  void (embeddingListo ? computarEmbeddingsPendientes() : inicializarEmbedder());
+  // Skip the heavy ONNX model when the environment opts out (e.g. low-memory hosts).
+  // Retrieval will use keyword scoring instead of semantic similarity.
+  if (!process.env.DISABLE_EMBEDDINGS) {
+    void (embeddingListo ? computarEmbeddingsPendientes() : inicializarEmbedder());
+  }
 
   return indice.map(({ fuente, texto }) => ({ fuente, texto }));
 }
