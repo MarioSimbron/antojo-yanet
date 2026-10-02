@@ -3,3 +3,12 @@ dist/
 *.log
 coverage/
 .prisma/
+
+# Environment secrets — never commit these
+.env
+.env.*
+!.env.example
+api/.env
+api/.env.*
+web/.env
+web/.env.*
