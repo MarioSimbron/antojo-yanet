@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -129,7 +129,7 @@ model Pedido {
   tiempoEstimadoMinutos Int?          @map("tiempo_estimado_minutos")
   cancelacionMotivo     String?       @map("cancelacion_motivo") @db.Text
   notasEncargo          String?       @map("notas_encargo") @db.Text
-  imagenRefUrl          String?       @map("imagen_ref_url") @db.LongText
+  imagenRefUrl          String?       @map("imagen_ref_url") @db.Text
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
