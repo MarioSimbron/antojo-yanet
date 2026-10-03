@@ -28,6 +28,10 @@ RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 
+# RAG knowledge base (faq, horarios, politicas-encargos). menu.md is regenerated
+# from the database on startup, but the static docs must ship with the image.
+COPY docs ./docs
+
 RUN mkdir -p uploads
 
 EXPOSE 4000
