@@ -6,6 +6,8 @@ Plataforma de pedidos y encargos para una panadería artesanal mexicana. Incluye
 
 **¿Por qué está hecho así?** Lee [DECISIONES.md](DECISIONES.md): cada decisión explicada paso a paso, con diagramas.
 
+**Reporte técnico (entregable):** [DulceBot_Reporte_Tecnico.pdf](docs/DulceBot_Reporte_Tecnico.pdf), con portada, índice, marco de referencia, decisiones, evaluación, tarjeta del modelo, referencias APA y declaración de uso de IA.
+
 > La API corre en el plan gratuito de Render y se duerme tras 15 minutos sin tráfico. La primera petición puede tardar ~50 segundos.
 
 ---

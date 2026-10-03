@@ -1,0 +1,13 @@
+{
+  "name": "dulcebot-reporte",
+  "private": true,
+  "type": "module",
+  "description": "Builds docs/DulceBot_Reporte_Tecnico.pdf from reporte.html with Paged.js and headless Microsoft Edge",
+  "scripts": {
+    "build": "node build.mjs ../.. ../DulceBot_Reporte_Tecnico.pdf"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1",
+    "pagedjs": "^0.4.3"
+  }
+}

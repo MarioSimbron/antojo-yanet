@@ -5,6 +5,7 @@
 - App en vivo: https://antojo-yanet.pages.dev/
 - Código y detalles técnicos: [README](README.md)
 - Notebook de fine-tuning: [dulcebot_lora_tinyllama.ipynb](notebooks/dulcebot_lora_tinyllama.ipynb)
+- Reporte técnico formal (PDF): [DulceBot_Reporte_Tecnico.pdf](docs/DulceBot_Reporte_Tecnico.pdf)
 
 ---
 
