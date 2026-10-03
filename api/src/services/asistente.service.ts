@@ -8,7 +8,7 @@
 import { PrismaClient } from '@prisma/client';
 import { llamarGroq, esError, evaluarPromptInjection, GroqTool, GroqMessage } from '../lib/groq.js';
 import { buscarChunksRelevantes, type Chunk } from '../lib/rag.js';
-import { agregarMensaje, obtenerHistorial } from '../lib/chat-history.js';
+import { agregarMensaje, obtenerHistorial, obtenerAgregadosPrevios, registrarAgregados } from '../lib/chat-history.js';
 import { verificarOwnership } from './pedido.service.js';
 
 const prisma = new PrismaClient();
@@ -164,6 +164,21 @@ export function describirAgregados(agregados: ItemCarritoChat[]): string[] {
   return lineas;
 }
 
+/**
+ * Tells whether adding a product now would duplicate what DulceBot added in its previous
+ * reply. After "He agregado 1 × Trenza…", a customer's "Sí, una de queso, por favor"
+ * made the model call agregar_al_carrito again and the cart ended with 2.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {number} productoId - Product the model wants to add.
+ * @param {number[]} agregadosPrevios - Products added in the session's previous turn.
+ * @param {unknown} adicional - The tool's `adicional` flag: true only when the customer
+ *   explicitly asked for more pieces ("otra", "una más").
+ * @returns {boolean} true when the add should be skipped as a duplicate.
+ */
+export function yaAgregadoEnTurnoAnterior(productoId: number, agregadosPrevios: number[], adicional: unknown): boolean {
+  return agregadosPrevios.includes(productoId) && adicional !== true;
+}
+
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
 const T_BUSCAR_MENU: GroqTool = {
@@ -195,6 +210,10 @@ const T_AGREGAR_CARRITO: GroqTool = {
             properties: {
               producto: { type: 'string', description: 'Nombre del producto tal como lo dijo el cliente' },
               cantidad: { type: 'number', description: 'Cantidad de piezas (entero ≥ 1)' },
+              adicional: {
+                type: ['boolean', 'null'],
+                description: 'true SOLO si el cliente pide explícitamente piezas ADICIONALES de un producto que agregaste en tu respuesta anterior ("otra", "una más", "agrega 2 más"). Una confirmación ("sí", "esa") no es adicional.',
+              },
             },
             required: ['producto', 'cantidad'],
           },
@@ -472,6 +491,8 @@ Responde de forma ejecutiva: primero el dato clave, luego el detalle si lo pide.
  * @param {Record<string, unknown>} args - Parsed JSON arguments from the tool call.
  * @param {{ usuarioId: number; rol: string }} [auth] - Authenticated user, if any.
  * @param {string} [guestToken] - Guest token of the current visitor, if any.
+ * @param {number[]} [agregadosPrevios=[]] - Products DulceBot added in the previous turn;
+ *   adding them again is skipped unless the customer asked for more pieces.
  * @returns {Promise<ResultadoTool>} Text result plus optional UI action and payload.
  */
 async function ejecutarTool(
@@ -479,14 +500,18 @@ async function ejecutarTool(
   args: Record<string, unknown>,
   auth?: { usuarioId: number; rol: string },
   guestToken?: string,
+  agregadosPrevios: number[] = [],
 ): Promise<ResultadoTool> {
   const esStaff = auth && ['ADMIN', 'CAJERO', 'MAESTRO_PANADERO', 'REPARTIDOR'].includes(auth.rol);
 
   switch (nombre) {
 
     case 'agregar_al_carrito': {
-      const pedidos = Array.isArray(args.items) ? (args.items as { producto?: unknown; cantidad?: unknown }[]) : [];
+      const pedidos = Array.isArray(args.items)
+        ? (args.items as { producto?: unknown; cantidad?: unknown; adicional?: unknown }[])
+        : [];
       const agregados: ItemCarritoChat[] = [];
+      const yaEnCarrito: string[] = [];
       const problemas: string[] = [];
 
       for (const pedido of pedidos) {
@@ -504,6 +529,10 @@ async function ejecutarTool(
               ? `"${nombreProducto}" es ambiguo; pregunta al cliente cuál de estos quiere: ${candidatos.map((c) => c.nombre).join(', ')}.`
               : `"${nombreProducto}" no existe en el menú.`,
           );
+          continue;
+        }
+        if (yaAgregadoEnTurnoAnterior(producto.id, agregadosPrevios, pedido.adicional)) {
+          yaEnCarrito.push(producto.nombre);
           continue;
         }
         if (!producto.requiereEncargo && producto.stockDisponible < cantidad) {
@@ -526,6 +555,12 @@ async function ejecutarTool(
 
       const lineas: string[] = [];
       lineas.push(...describirAgregados(agregados));
+      if (yaEnCarrito.length > 0) {
+        lineas.push(
+          `Ya estaba en el carrito (lo agregaste en tu respuesta anterior; NO se duplicó): ${yaEnCarrito.join(', ')}.`,
+          'Dile al cliente que ya lo tiene en su carrito y pregúntale si quiere piezas adicionales.',
+        );
+      }
       if (problemas.length > 0) lineas.push('NO se agregó:', ...problemas.map((p) => `- ${p}`));
       if (lineas.length === 0) lineas.push('No se indicó ningún producto; no se agregó nada.');
 
@@ -613,14 +648,21 @@ async function ejecutarTool(
       if (!fechaDeseada) notaFecha = 'Falta la fecha: el cliente la elige en el checkout (mínimo 48 horas, máximo 30 días).';
       else if (errorFecha) notaFecha = `La fecha ${fechaDeseada} no se puede usar: ${errorFecha}. Explícaselo al cliente; elegirá otra fecha en el checkout.`;
 
+      // A follow-up such as "sí" or a new date re-opens the checkout without adding the
+      // cake a second time.
+      const yaEstaba = yaAgregadoEnTurnoAnterior(producto.id, agregadosPrevios, false);
+      const estado = yaEstaba
+        ? `Encargo de ${producto.nombre} ($${precio.toFixed(2)}): ya estaba en el carrito desde tu respuesta anterior (NO se duplicó). Se vuelve a abrir el checkout con los datos prellenados.`
+        : `Encargo preparado: 1 x ${producto.nombre} ($${precio.toFixed(2)}). Se agregó al carrito y se está abriendo el checkout con los datos prellenados.`;
+
       return {
         resultado: [
-          `Encargo preparado: 1 x ${producto.nombre} ($${precio.toFixed(2)}). Se agregó al carrito y se está abriendo el checkout con los datos prellenados.`,
+          estado,
           notaFecha,
           `IMPORTANTE: el encargo todavía NO está registrado. Se registra cuando el cliente confirma en el checkout y paga el depósito del 50% ($${(precio * 0.5).toFixed(2)}). Díselo así.`,
         ].join('\n'),
         accion: 'ABRIR_ENCARGO',
-        itemsCarrito: [{
+        itemsCarrito: yaEstaba ? undefined : [{
           productoId: producto.id,
           nombre: producto.nombre,
           precio,
@@ -919,6 +961,8 @@ NO aplica para preguntas de disponibilidad o precio:
   - "¿tienen conchas?" → buscar_en_menu con query "conchas"
   - "¿cuánto cuesta el churro?" → buscar_en_menu con query "churro"
 El sistema de búsqueda maneja variaciones de nombre (quita "de", stop-words) — no necesitas confirmar existencia antes de intentar agregar.
+Si el cliente solo confirma algo que ya agregaste en tu respuesta anterior ("sí", "esa", "perfecto"), NO lo vuelvas a agregar: dile que ya está en su carrito.
+Usa adicional=true únicamente cuando pida más piezas de ese mismo producto ("otra", "una más", "agrega 2 más").
 
 ${buildRegla2(toolsActivos)}
 
@@ -1030,6 +1074,8 @@ export async function procesarMensajeChat(
   const systemPrompt = construirSystemPrompt(chunks, toolsActivos, auth);
 
   const historial = obtenerHistorial(sessionId);
+  // Read before this turn overwrites it: what DulceBot added in its previous reply.
+  const agregadosPrevios = obtenerAgregadosPrevios(sessionId);
   const messages: GroqMessage[] = [
     { role: 'system', content: systemPrompt },
     ...historial.map((m) => ({ role: m.rol as 'user' | 'assistant', content: m.contenido })),
@@ -1042,6 +1088,7 @@ export async function procesarMensajeChat(
   const resultado = await llamarGroq(messages, toolsActivos);
 
   if (esError(resultado)) {
+    registrarAgregados(sessionId, []);
     return { respuesta: resultado.message, accion: 'NINGUNA', fuentesUsadas };
   }
 
@@ -1055,7 +1102,7 @@ export async function procesarMensajeChat(
       let toolArgs: Record<string, unknown> = {};
       try { toolArgs = JSON.parse(toolCall.function.arguments); } catch { /* empty */ }
       console.log(`[asistente] tool ${toolCall.function.name}`, JSON.stringify(toolArgs));
-      const r = await ejecutarTool(toolCall.function.name, toolArgs, auth, guestToken);
+      const r = await ejecutarTool(toolCall.function.name, toolArgs, auth, guestToken, agregadosPrevios);
       resultados.push(r);
       toolMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: r.resultado });
     }
@@ -1098,10 +1145,14 @@ export async function procesarMensajeChat(
         : (resultado2.choices[0].message.content ?? resultados.map((r) => r.resultado).join('\n')),
     ));
     agregarMensaje(sessionId, 'assistant', respuesta);
+    // A tool turn that added nothing (a skipped duplicate, a search) keeps the previous
+    // record, so a second "sí" in a row is still guarded.
+    registrarAgregados(sessionId, itemsCarrito.length > 0 ? itemsCarrito.map((i) => i.productoId) : agregadosPrevios);
     return { respuesta, ...efectos, fuentesUsadas };
   }
 
   const respuesta = filtrarFugaDePrompt(limpiarMarkdown(choice.message.content ?? 'No pude procesar tu mensaje.'));
   agregarMensaje(sessionId, 'assistant', respuesta);
+  registrarAgregados(sessionId, []);
   return { respuesta, accion: 'NINGUNA', fuentesUsadas };
 }

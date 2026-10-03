@@ -33,7 +33,48 @@ import {
   RESPUESTA_PROMPT_PROTEGIDO,
   avisoListaLarga,
   describirAgregados,
+  yaAgregadoEnTurnoAnterior,
 } from '../../src/services/asistente.service';
+import { registrarAgregados, obtenerAgregadosPrevios } from '../../src/lib/chat-history';
+
+// ── Duplicados en el carrito ──────────────────────────────────────────────────
+
+describe('yaAgregadoEnTurnoAnterior — no duplicar al confirmar', () => {
+  /**
+   * Regression: after "He agregado 1 × Trenza de queso y canela", the customer's
+   * "Sí, una de queso, por favor" added it again and the cart ended with 2.
+   */
+  it('omite un producto agregado en el turno anterior cuando solo es una confirmación', () => {
+    expect(yaAgregadoEnTurnoAnterior(7, [7], undefined)).toBe(true);
+    expect(yaAgregadoEnTurnoAnterior(7, [7], null)).toBe(true);
+    expect(yaAgregadoEnTurnoAnterior(7, [7], false)).toBe(true);
+  });
+
+  it('permite agregar más piezas cuando el cliente las pide explícitamente ("otra")', () => {
+    expect(yaAgregadoEnTurnoAnterior(7, [7], true)).toBe(false);
+  });
+
+  it('permite productos que no se agregaron en el turno anterior', () => {
+    expect(yaAgregadoEnTurnoAnterior(8, [7], undefined)).toBe(false);
+    expect(yaAgregadoEnTurnoAnterior(8, [], undefined)).toBe(false);
+  });
+});
+
+describe('registrarAgregados / obtenerAgregadosPrevios — memoria del turno anterior', () => {
+  it('guarda por sesión lo agregado en el último turno, sin repetidos', () => {
+    registrarAgregados('sesion-a', [7, 7, 9]);
+    registrarAgregados('sesion-b', [3]);
+    expect(obtenerAgregadosPrevios('sesion-a')).toEqual([7, 9]);
+    expect(obtenerAgregadosPrevios('sesion-b')).toEqual([3]);
+  });
+
+  it('cada turno reemplaza al anterior y una lista vacía lo limpia', () => {
+    registrarAgregados('sesion-c', [7]);
+    registrarAgregados('sesion-c', []);
+    expect(obtenerAgregadosPrevios('sesion-c')).toEqual([]);
+    expect(obtenerAgregadosPrevios('sesion-nueva')).toEqual([]);
+  });
+});
 
 // ── describirAgregados ────────────────────────────────────────────────────────
 

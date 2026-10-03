@@ -36,6 +36,35 @@ export function agregarMensaje(sessionId: string, rol: 'user' | 'assistant', con
 }
 
 /**
+ * Product IDs DulceBot added to the cart in each session's most recent turn.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const agregadosUltimoTurno = new Map<string, number[]>();
+
+/**
+ * Records the products DulceBot added to the cart in the turn that just ended,
+ * replacing the previous turn's record (an empty list clears it).
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} sessionId - Chat session identifier.
+ * @param {number[]} productoIds - IDs of the products added this turn.
+ * @returns {void}
+ */
+export function registrarAgregados(sessionId: string, productoIds: number[]) {
+  agregadosUltimoTurno.set(sessionId, [...new Set(productoIds)]);
+}
+
+/**
+ * Returns the products DulceBot added in the session's previous turn, so a customer's
+ * "sí" after "He agregado 1 × Trenza…" does not add the same product twice.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} sessionId - Chat session identifier.
+ * @returns {number[]} Product IDs added in the previous turn (empty if none).
+ */
+export function obtenerAgregadosPrevios(sessionId: string): number[] {
+  return agregadosUltimoTurno.get(sessionId) ?? [];
+}
+
+/**
  * Returns the stored history for a session.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @param {string} sessionId - Chat session identifier.
