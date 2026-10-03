@@ -297,7 +297,7 @@ Siguiendo la idea de la Masterclass 3 ("misma prueba, mismos criterios"), DulceB
 | **Recuperación RAG** | ¿El documento correcto aparece en el top-3? 14 preguntas reales (horarios, encargos, FAQ, menú). | `npm test` (desde `api/`) | 14/14 (100 %), tanto con embeddings como con palabras clave |
 | **Ruteo** | ¿El modelo elige la herramienta correcta? 21 mensajes de los 5 roles. Reporta precisión y matriz de confusión, como el clasificador de la Clase 4. | `npm run eval` (desde `api/`, requiere `GROQ_API_KEY`) | 20/21 (95 %). Antes de las correcciones: 17/21 (81 %) |
 | **Prompt Guard** | 15 mensajes (8 legítimos, varios con "ignora"/"olvida", y 7 ataques): detección y falsos positivos con el umbral de producción. | `npm run eval` | 4/7 ataques detectados, 1/8 falsos positivos. Por eso avisa en vez de bloquear |
-| **Fine-tuning** | TinyLlama base vs. LoRA en 14 preguntas no vistas: % de datos clave + LLM-como-juez (exactitud, tono, formato). | [Notebook en Colab](https://colab.research.google.com/github/MarioSimbron/antojo-yanet/blob/main/notebooks/dulcebot_lora_tinyllama.ipynb) | Ver la sección 6 del notebook |
+| **Fine-tuning** | TinyLlama base vs. LoRA en 14 preguntas no vistas: % de datos clave + LLM-como-juez (exactitud, tono, formato). | [Notebook en Colab](https://colab.research.google.com/github/MarioSimbron/antojo-yanet/blob/main/notebooks/dulcebot_lora_tinyllama.ipynb) | Formato 1.93 → **5.00**, tono 3.07 → **4.14**, exactitud 1.86 → 2.36, datos clave 25 % → 43 % |
 
 El eval de ruteo ya demostró su valor. La primera corrida (81 %) reveló tres problemas que se corrigieron:
 - **Ruteo aleatorio:** el mismo mensaje iba a herramientas distintas en cada corrida porque Groq usa temperatura 1.0 por defecto. Ahora es 0.2.
@@ -323,6 +323,23 @@ El notebook [`notebooks/dulcebot_lora_tinyllama.ipynb`](notebooks/dulcebot_lora_
 5. Guarda el adaptador (opcionalmente lo sube a Hugging Face).
 
 Requisitos: GPU T4 de Colab y el secret `GROQ_API_KEY` (para el juez). `HF_TOKEN` es opcional.
+
+### Resultados de la corrida 1 (14 preguntas no vistas en el entrenamiento)
+
+| Criterio (juez `gpt-oss-20b`, 1 a 5) | TinyLlama base | TinyLlama + LoRA |
+|---|---:|---:|
+| Formato (texto plano, breve, sin basura) | 1.93 | **5.00** |
+| Tono (voz de DulceBot) | 3.07 | **4.14** |
+| Exactitud (datos correctos del contexto) | 1.86 | 2.36 |
+| Datos clave mencionados (métrica objetiva) | 25 % | 43 % |
+
+**Lectura:** LoRA aprendió muy bien la *forma*: el formato llegó al máximo y el tono subió más de un punto. Los *hechos* mejoraron poco: la exactitud subió en 6 temas y bajó en 4. Las respuestas explican por qué:
+
+- **Fluidez no es exactitud.** El modelo ajustado inventó datos con total seguridad y con la voz de DulceBot: un envío de "$15 MXN" (es $30), un WhatsApp "987 542 123", descuentos de "10 %" y "2 %" que no existen, y en la pregunta fuera de área respondió el clima ("templado con lluvias").
+- **Plantillas que se cruzan.** Depósito, cancelación y "encargo + stock" empezaron con la misma frase del tema de anticipación ("Con al menos 48 horas y máximo 30 días…").
+- **Un error de recuperación en el notebook, no de LoRA.** Esta corrida usaba solo el fragmento más parecido (producción usa hasta 5). "¿A qué hora abren el domingo?" recuperó "Días festivos" en lugar de "Horario de atención", así que ningún modelo tenía el dato. El notebook ya usa los 3 fragmentos más relevantes.
+
+Este resultado respalda la arquitectura de producción: **el fine-tuning sirve para el estilo; los datos deben venir de RAG y herramientas**. DulceBot en producción obtiene la información del negocio por RAG (recuperación 14/14) y de la base de datos por function calling (ruteo 95 %), no de los pesos del modelo.
 
 ---
 
