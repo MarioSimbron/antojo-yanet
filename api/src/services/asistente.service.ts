@@ -134,10 +134,34 @@ export function avisoListaLarga(resultado: string): string {
   const total = (resultado.match(/^### /gm) ?? []).length;
   if (total <= MAX_PRODUCTOS_RESPUESTA) return resultado;
   return (
-    `${resultado}\n\nNOTA PARA TI: este resultado trae ${total} productos. Nombra como máximo ` +
-    `${MAX_PRODUCTOS_RESPUESTA} (variados y representativos) y dile al cliente que el menú completo ` +
-    'se está abriendo en la página.'
+    `${resultado}\n\nNOTA PARA TI: este resultado trae ${total} productos. Si el cliente preguntó por un ` +
+    'producto específico, responde solo sobre ese producto. Si preguntó por una categoría, nombra como máximo ' +
+    `${MAX_PRODUCTOS_RESPUESTA} (variados y representativos) y dile que el menú completo se está abriendo en la página.`
   );
+}
+
+/**
+ * Customer-facing reply used when the second model call fails after the tools already
+ * ran (typically a Groq rate limit). It used to show the raw tool results, which leaked
+ * internal notes such as "IMPORTANTE: … NO menciones depósito" to the customer.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} accion - UI action the tools produced.
+ * @param {ItemCarritoChat[]} itemsCarrito - Products added to the cart this turn.
+ * @returns {string} A short, safe reply describing what actually happened.
+ */
+export function respuestaDeRespaldo(accion: string, itemsCarrito: ItemCarritoChat[]): string {
+  switch (accion) {
+    case 'AGREGAR_CARRITO':
+      return `Listo, agregué a tu carrito: ${itemsCarrito.map((i) => `${i.cantidad} × ${i.nombre}`).join(', ')}. Puedes revisarlo y confirmar en el checkout.`;
+    case 'ABRIR_ENCARGO':
+      return 'Te abrí el checkout con tu encargo prellenado. Queda registrado cuando confirmes y pagues el depósito del 50%.';
+    case 'VER_PEDIDO':
+      return 'Te muestro el estado de tu pedido en la página de seguimiento.';
+    case 'VER_MENU':
+      return 'Te abrí el menú para que veas los productos disponibles.';
+    default:
+      return 'En este momento no puedo responder. Intenta de nuevo en un momento.';
+  }
 }
 
 /**
@@ -1139,10 +1163,9 @@ export async function procesarMensajeChat(
     ];
 
     const resultado2 = await llamarGroq(messages2);
+    const respaldo = respuestaDeRespaldo(efectos.accion, itemsCarrito);
     const respuesta = filtrarFugaDePrompt(limpiarMarkdown(
-      esError(resultado2)
-        ? resultados.map((r) => r.resultado).join('\n')
-        : (resultado2.choices[0].message.content ?? resultados.map((r) => r.resultado).join('\n')),
+      esError(resultado2) ? respaldo : (resultado2.choices[0].message.content || respaldo),
     ));
     agregarMensaje(sessionId, 'assistant', respuesta);
     // A tool turn that added nothing (a skipped duplicate, a search) keeps the previous

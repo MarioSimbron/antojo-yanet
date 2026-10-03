@@ -34,7 +34,34 @@ import {
   avisoListaLarga,
   describirAgregados,
   yaAgregadoEnTurnoAnterior,
+  respuestaDeRespaldo,
 } from '../../src/services/asistente.service';
+
+// ── respuestaDeRespaldo ───────────────────────────────────────────────────────
+
+describe('respuestaDeRespaldo — sin texto interno cuando falla Groq', () => {
+  const trenza = {
+    productoId: 1, nombre: 'Trenza de queso y canela', precio: 35, cantidad: 1, esEncargo: false, imagenUrl: null,
+  };
+
+  /**
+   * Regression: when the second Groq call failed, the customer saw the raw tool result,
+   * including the internal note "IMPORTANTE: … NO menciones depósito ni anticipo".
+   */
+  it('describe lo agregado al carrito sin notas internas', () => {
+    const texto = respuestaDeRespaldo('AGREGAR_CARRITO', [trenza]);
+    expect(texto).toBe('Listo, agregué a tu carrito: 1 × Trenza de queso y canela. Puedes revisarlo y confirmar en el checkout.');
+    expect(texto).not.toContain('IMPORTANTE');
+  });
+
+  it('explica el encargo y el depósito solo cuando la acción es un encargo', () => {
+    expect(respuestaDeRespaldo('ABRIR_ENCARGO', [])).toContain('depósito del 50%');
+  });
+
+  it('usa el mensaje de error genérico para acciones sin respuesta propia', () => {
+    expect(respuestaDeRespaldo('NINGUNA', [])).toBe('En este momento no puedo responder. Intenta de nuevo en un momento.');
+  });
+});
 import { registrarAgregados, obtenerAgregadosPrevios } from '../../src/lib/chat-history';
 
 // ── Duplicados en el carrito ──────────────────────────────────────────────────
@@ -117,7 +144,15 @@ describe('avisoListaLarga — máximo 6 productos por respuesta', () => {
   it('agrega un recordatorio cuando el resultado trae más de 6 productos', () => {
     const texto = avisoListaLarga(menu(32));
     expect(texto).toContain('este resultado trae 32 productos');
-    expect(texto).toContain('Nombra como máximo 6');
+    expect(texto).toContain('nombra como máximo 6');
+  });
+
+  /**
+   * Regression: with the first wording, "Dame una trenza de queso" was answered with six
+   * unrelated products (donuts, cupcakes) because the note asked for six regardless.
+   */
+  it('pide responder solo sobre el producto cuando la pregunta es específica', () => {
+    expect(avisoListaLarga(menu(32))).toContain('responde solo sobre ese producto');
   });
 
   it('deja intacto un resultado corto', () => {
