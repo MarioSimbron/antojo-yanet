@@ -98,7 +98,8 @@
   </div>
   <div class="ligas">
     Aplicación en línea: antojo-yanet.pages.dev<br>
-    Repositorio: github.com/MarioSimbron/antojo-yanet
+    Repositorio: github.com/MarioSimbron/antojo-yanet<br>
+    Adaptador LoRA: huggingface.co/Simbroncas/dulcebot-tinyllama-lora
   </div>
 </section>
 
@@ -192,7 +193,7 @@
     <tr><td>Modelo de lenguaje</td><td><code>openai/gpt-oss-20b</code> en Groq</td><td>Entender, decidir herramienta y redactar</td></tr>
     <tr><td>Seguridad</td><td>Llama Prompt Guard 2 (86M) en Groq</td><td>Detectar intentos de manipulación</td></tr>
     <tr><td>RAG</td><td><code>paraphrase-multilingual-MiniLM-L12-v2</code></td><td>Búsqueda semántica en los documentos del negocio</td></tr>
-    <tr><td>Fine-tuning</td><td>TinyLlama-1.1B + LoRA (Hugging Face) en Colab</td><td>Experimento de ajuste y evaluación</td></tr>
+    <tr><td>Fine-tuning</td><td>TinyLlama-1.1B + LoRA (Hugging Face) en Colab</td><td>Experimento de ajuste y evaluación; adaptador publicado en Hugging Face Hub</td></tr>
   </table>
 
   <h2>3.2 Despliegue</h2>
@@ -258,7 +259,7 @@
   <div class="adr"><h3>D8. El modelo ajustado con LoRA no va a producción</h3><dl>
     <dt>Contexto</dt><dd>Se probó si un modelo ajustado con datos de la panadería respondería mejor (capítulo 6).</dd>
     <dt>Decisión</dt><dd>Mantener RAG y herramientas en producción; el fine-tuning queda como experimento documentado.</dd>
-    <dt>Consecuencias</dt><dd>LoRA mejoró la forma, pero inventó datos, y mejorar el RAG aportó más exactitud que el ajuste.</dd>
+    <dt>Consecuencias</dt><dd>LoRA mejoró la forma, pero inventó datos, y mejorar el RAG aportó más exactitud que el ajuste. El adaptador queda publicado en Hugging Face como experimento documentado.</dd>
   </dl></div>
 
   <div class="adr"><h3>D9. Operar con planes gratuitos, con los límites a la vista</h3><dl>
@@ -298,7 +299,7 @@
 <!-- ============================ 6. FINE-TUNING ============================ -->
 <section>
   <h1 id="c6"><span class="num">6.</span>Experimento de fine-tuning y tarjeta del modelo</h1>
-  <p>El experimento sigue el procedimiento del tema 3 y se documenta con el formato de tarjeta de modelo propuesto por Mitchell et al. (2019). El notebook ejecutado está en el repositorio (<code>notebooks/dulcebot_lora_tinyllama.ipynb</code>).</p>
+  <p>El experimento sigue el procedimiento del tema 3 y se documenta con el formato de tarjeta de modelo propuesto por Mitchell et al. (2019). El notebook ejecutado está en la carpeta <em>notebooks</em> del repositorio. El adaptador está publicado con su tarjeta de modelo en Hugging Face (Simbron Gonzalez, 2026); sus pesos provienen de un reentrenamiento con la misma configuración y semilla de la corrida 2.</p>
   <table>
     <tr><th style="width:27%">Sección</th><th>Contenido</th></tr>
     <tr><td><strong>Detalles del modelo</strong></td><td>TinyLlama-1.1B-Chat v1.0 (arquitectura Llama; Zhang et al., 2024) con adaptador LoRA de rango 16 (alfa 32, dropout 0.05) sobre las proyecciones de atención q, k, v y o: 4.5 millones de parámetros entrenables (0.41 % del total).</td></tr>
@@ -373,6 +374,7 @@
   <p>Nygard, M. (2011). <em>Documenting architecture decisions</em>. Cognitect. https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions</p>
   <p>OpenAI. (2025). <em>gpt-oss-120b &amp; gpt-oss-20b model card</em>. arXiv. https://arxiv.org/abs/2508.10925</p>
   <p>Reimers, N., y Gurevych, I. (2020). Making monolingual sentence embeddings multilingual using knowledge distillation. En <em>Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing</em>. https://arxiv.org/abs/2004.09813</p>
+  <p>Simbron Gonzalez, M. (2026). <em>dulcebot-tinyllama-lora</em> [Adaptador LoRA para TinyLlama-1.1B-Chat]. Hugging Face. https://huggingface.co/Simbroncas/dulcebot-tinyllama-lora</p>
   <p>Zhang, P., Zeng, G., Wang, T., y Lu, W. (2024). <em>TinyLlama: An open-source small language model</em>. arXiv. https://arxiv.org/abs/2401.02385</p>
 </section>
 

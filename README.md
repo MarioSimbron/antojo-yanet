@@ -21,7 +21,7 @@ DulceBot es el asistente inteligente de este proyecto. Esta tabla resume cómo c
 | **Masterclass 1: LLMs y Llama** | Dos modelos en producción, ambos en Groq. **Llama Prompt Guard 2** (Meta, 86M, multilingüe) revisa cada mensaje en busca de prompt injection. `openai/gpt-oss-20b` genera las respuestas, porque el plan gratuito de Groq ya no ofrece modelos Llama conversacionales y el propio curso usa este modelo en la Clase 4. La familia Llama también se usa en el fine-tuning (TinyLlama-1.1B). | [`api/src/lib/groq.ts`](api/src/lib/groq.ts) |
 | **Masterclass 2: Prompt engineering** | System prompt con persona y 6 reglas, construido por rol (5 roles). Incluye ejemplos de respuesta correcta, la fecha de hoy para resolver fechas relativas y un recordatorio inyectado cuando hay ambigüedad. | [`construirSystemPrompt`](api/src/services/asistente.service.ts) |
 | **Masterclass 2: RAG** | 4 documentos del negocio (`api/docs/`), con el menú regenerado desde la BD en cada cambio. Embeddings `paraphrase-multilingual-MiniLM-L12-v2` (umbral coseno 0.25), con fallback por palabras clave. | [`api/src/lib/rag.ts`](api/src/lib/rag.ts) |
-| **Masterclass 3: Fine-tuning con LoRA** | TinyLlama ajustado con LoRA para la voz y las políticas de DulceBot, con contexto RAG en el prompt. El menú no se usa para entrenar porque cambia a diario. | [`notebooks/dulcebot_lora_tinyllama.ipynb`](notebooks/dulcebot_lora_tinyllama.ipynb) |
+| **Masterclass 3: Fine-tuning con LoRA** | TinyLlama ajustado con LoRA para la voz y las políticas de DulceBot, con contexto RAG en el prompt. El menú no se usa para entrenar porque cambia a diario. | [`notebooks/dulcebot_lora_tinyllama.ipynb`](notebooks/dulcebot_lora_tinyllama.ipynb) · [adaptador en Hugging Face](https://huggingface.co/Simbroncas/dulcebot-tinyllama-lora) |
 | **Masterclass 3: Evaluación** | (1) Precisión de recuperación RAG. (2) Ruteo mensaje → herramienta con matriz de confusión. (3) Detección de Prompt Guard (aciertos y falsos positivos). (4) Modelo base vs. LoRA con métrica objetiva y LLM-como-juez. | [Evaluación](#evaluación) |
 | **E-learning: pipeline completo** | mensaje → Prompt Guard + RAG → prompt por rol → Groq decide la herramienta (el "clasificador") → ejecución en BD → respuesta → filtro de salida → evaluación. Desplegado en Cloudflare Pages + Render + Neon. | [Despliegue](#despliegue) |
 
@@ -324,7 +324,7 @@ El notebook [`notebooks/dulcebot_lora_tinyllama.ipynb`](notebooks/dulcebot_lora_
 2. Construye un dataset de 14 temas (horarios, envío, encargos, depósito, cancelación, pagos, puntos, factura, fuera de área). Cada tema tiene 4 paráfrasis de entrenamiento y 1 pregunta de prueba no vista.
 3. Entrena LoRA (r=16 sobre `q/k/v/o_proj`) con la pérdida calculada solo sobre la respuesta, como en la Clase 3.
 4. Compara modelo base vs. ajustado con el mismo prompt (DulceBot + contexto RAG): % de datos clave mencionados y LLM-como-juez (`gpt-oss-20b`) sobre exactitud, tono y formato.
-5. Guarda el adaptador (opcionalmente lo sube a Hugging Face).
+5. Guarda el adaptador y lo publica en Hugging Face con su tarjeta de modelo: [Simbroncas/dulcebot-tinyllama-lora](https://huggingface.co/Simbroncas/dulcebot-tinyllama-lora).
 
 Requisitos: GPU T4 de Colab y el secret `GROQ_API_KEY` (para el juez). `HF_TOKEN` es opcional.
 

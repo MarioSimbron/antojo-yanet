@@ -6,6 +6,7 @@
 - Código y detalles técnicos: [README](README.md)
 - Notebook de fine-tuning: [dulcebot_lora_tinyllama.ipynb](notebooks/dulcebot_lora_tinyllama.ipynb)
 - Reporte técnico formal (PDF): [DulceBot_Reporte_Tecnico.pdf](docs/DulceBot_Reporte_Tecnico.pdf)
+- Adaptador LoRA publicado: [Simbroncas/dulcebot-tinyllama-lora](https://huggingface.co/Simbroncas/dulcebot-tinyllama-lora) (Hugging Face)
 
 ---
 
@@ -123,7 +124,7 @@ La capa 4 es la más fuerte: aunque engañen al modelo, **no puede usar herramie
 |---|---|
 | **Problema** | ¿Un modelo ajustado con los datos de la panadería respondería mejor? |
 | **Lo que vimos** | Ajustamos TinyLlama con LoRA (56 ejemplos) y lo comparamos con el modelo sin ajustar en 14 preguntas que nunca vio, con un juez automático. |
-| **Decisión** | **No usarlo en producción.** Aprendió la *forma* de hablar, pero inventa *datos* con total seguridad. |
+| **Decisión** | **No usarlo en producción.** Aprendió la *forma* de hablar, pero inventa *datos* con total seguridad. El adaptador queda publicado en [Hugging Face](https://huggingface.co/Simbroncas/dulcebot-tinyllama-lora) como experimento documentado. |
 | **Comprobación** | Tabla de abajo. |
 
 | Medida (corrida 2) | Sin ajustar | Con LoRA |
