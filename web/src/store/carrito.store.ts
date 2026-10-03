@@ -106,6 +106,18 @@ export const useCarritoStore = create<CarritoStore>()(
 );
 
 /**
+ * Custom-order data DulceBot collected in the chat, passed to the checkout as router
+ * state so the encargo fields arrive pre-filled.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @property {string} [fechaDeseada] - Requested delivery date, YYYY-MM-DD.
+ * @property {string} [notas] - Details for the "Detalles del encargo" field.
+ */
+export interface BorradorEncargoChat {
+  fechaDeseada?: string;
+  notas?: string;
+}
+
+/**
  * Splits the cart into stock items and made-to-order items, since each group must be
  * sent as a separate order.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>

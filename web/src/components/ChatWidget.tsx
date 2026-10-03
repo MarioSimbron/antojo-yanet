@@ -8,7 +8,7 @@ import {
 import ChatIcon from '@mui/icons-material/Chat';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
-import { useCarritoStore } from '../store/carrito.store';
+import { useCarritoStore, type BorradorEncargoChat } from '../store/carrito.store';
 import { useAuthStore } from '../store/auth.store';
 
 /**
@@ -57,6 +57,35 @@ interface ItemCarritoChat {
   cantidad: number;
   esEncargo: boolean;
   imagenUrl: string | null;
+}
+
+/**
+ * Custom-order data returned by chatAsistente when DulceBot prepares an encargo.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @property {string} producto - Catalogue product name.
+ * @property {string} fechaDeseada - Requested date (YYYY-MM-DD) or empty if unknown/invalid.
+ * @property {number} personas - Number of people to serve (0 if not given).
+ * @property {string} detalles - Flavour, decoration, message, etc.
+ */
+interface DatosEncargoChat {
+  producto: string;
+  fechaDeseada: string;
+  personas: number;
+  detalles: string;
+}
+
+/**
+ * Turns the encargo data from the chat into the checkout pre-fill draft.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {DatosEncargoChat | null | undefined} datos - Data returned by chatAsistente.
+ * @returns {BorradorEncargoChat} Date and notes for the checkout form.
+ */
+function borradorEncargo(datos: DatosEncargoChat | null | undefined): BorradorEncargoChat {
+  if (!datos) return {};
+  const notas = [datos.personas > 0 ? `Para ${datos.personas} personas.` : '', datos.detalles]
+    .filter(Boolean)
+    .join(' ');
+  return { fechaDeseada: datos.fechaDeseada || undefined, notas: notas || undefined };
 }
 
 /**
@@ -124,7 +153,8 @@ function getSessionId(): string {
 /**
  * Floating chat button (MUI Fab) and animated panel for talking to DulceBot.
  * Sends messages through the chatAsistente mutation, shows a typing indicator and
- * navigates according to the returned action (AGREGAR_CARRITO, VER_PEDIDO, VER_MENU).
+ * navigates according to the returned action (AGREGAR_CARRITO, ABRIR_ENCARGO, VER_PEDIDO,
+ * VER_MENU). ABRIR_ENCARGO opens the checkout with the encargo date and details pre-filled.
  * The greeting and input placeholder adapt automatically to the user's role.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {JSX.Element} The chat widget.
@@ -177,10 +207,7 @@ export default function ChatWidget() {
         { rol: 'assistant', texto: r.respuesta, fuentes: r.fuentesUsadas ?? [] },
       ]);
 
-      if (r.accion === 'ABRIR_CHECKOUT') navigate('/checkout');
-      else if (r.accion === 'VER_PEDIDO' && r.pedidoId) navigate(`/seguimiento/${r.pedidoId}`);
-      else if (r.accion === 'VER_MENU') navigate('/menu');
-
+      // Add items before navigating so the checkout already sees them on mount.
       for (const item of (r.itemsCarrito ?? []) as ItemCarritoChat[]) {
         agregarItem(
           {
@@ -193,6 +220,11 @@ export default function ChatWidget() {
           item.cantidad,
         );
       }
+
+      if (r.accion === 'ABRIR_CHECKOUT') navigate('/checkout');
+      else if (r.accion === 'ABRIR_ENCARGO') navigate('/checkout', { state: { encargoChat: borradorEncargo(r.datosEncargo) } });
+      else if (r.accion === 'VER_PEDIDO' && r.pedidoId) navigate(`/seguimiento/${r.pedidoId}`);
+      else if (r.accion === 'VER_MENU') navigate('/menu');
     } catch {
       setMensajes((m) => [
         ...m,

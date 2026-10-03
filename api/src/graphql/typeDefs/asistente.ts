@@ -35,6 +35,8 @@ export const asistenteTypeDefs = `#graphql
     VER_PEDIDO
     VER_MENU
     AGREGAR_CARRITO
+    "Opens the checkout with an encargo product added and its date/details pre-filled."
+    ABRIR_ENCARGO
   }
 
   extend type Mutation {

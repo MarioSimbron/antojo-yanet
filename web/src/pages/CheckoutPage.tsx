@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, gql } from '@apollo/client';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -14,7 +14,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import { useState } from 'react';
-import { useCarritoStore, separarCarrito } from '../store/carrito.store';
+import { useCarritoStore, separarCarrito, type BorradorEncargoChat } from '../store/carrito.store';
 import { useAuthStore } from '../store/auth.store';
 
 /**
@@ -112,6 +112,8 @@ export default function CheckoutPage() {
   });
 
   const [crearPedido, { loading }] = useMutation(CREAR_PEDIDO);
+  const location = useLocation();
+  const [prellenadoPorChat, setPrellenadoPorChat] = useState(false);
 
   const { itemsStock, itemsEncargo } = separarCarrito(items);
   const hayMezcla = itemsStock.length > 0 && itemsEncargo.length > 0;
@@ -191,6 +193,22 @@ export default function CheckoutPage() {
       }
     },
   });
+
+  /**
+   * Pre-fills the encargo date and details when DulceBot opened the checkout
+   * (ABRIR_ENCARGO). The time defaults to noon; the 48 h / 30 day rules are still
+   * validated here. Keyed on location.key so a new encargo from the chat also applies
+   * when the customer is already on this page.
+   * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+   */
+  useEffect(() => {
+    const borrador = (location.state as { encargoChat?: BorradorEncargoChat } | null)?.encargoChat;
+    if (!borrador) return;
+    if (borrador.fechaDeseada) void formik.setFieldValue('fechaEntregaEstimada', `${borrador.fechaDeseada}T12:00`, false);
+    if (borrador.notas) void formik.setFieldValue('notasEncargo', borrador.notas, false);
+    setPrellenadoPorChat(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
 
   const subtotal = calcularSubtotal();
   const costoEnvio = formik.values.tipoEntrega === 'DOMICILIO' ? 30 : 0;
@@ -298,6 +316,13 @@ export default function CheckoutPage() {
       {hayMezcla && (
         <Alert severity="info" sx={{ mb: 3 }}>
           Tu pedido se dividirá en 2 órdenes (productos de stock + encargos).
+        </Alert>
+      )}
+
+      {prellenadoPorChat && tieneEncargo && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          DulceBot llenó los datos de tu encargo. Revisa la fecha y los detalles: el encargo queda
+          registrado al confirmar el pedido con el depósito del 50%.
         </Alert>
       )}
 

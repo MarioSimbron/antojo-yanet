@@ -43,7 +43,10 @@ const TEMPERATURA = 0.2;
  */
 function getClient(): Groq | null {
   if (!process.env.GROQ_API_KEY) return null;
-  if (!groqClient) groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  // The free tier allows 8,000 tokens per minute and one DulceBot message uses 3–5k
+  // (two calls), so quick consecutive messages hit 429 with a sub-second retry-after.
+  // The SDK honours that header with back-off; 4 retries (default 2) absorb the burst.
+  if (!groqClient) groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY, maxRetries: 4 });
   return groqClient;
 }
 
@@ -92,6 +95,44 @@ export async function llamarGroq(
       type: 'groq_error',
       message: 'En este momento no puedo responder. Intenta de nuevo en un momento.',
     };
+  }
+}
+
+/**
+ * Meta's Llama Prompt Guard 2 classifier served by Groq. The 86M variant is
+ * multilingual (the 22M one only covers English), and Groq does not count its calls
+ * against the daily token quota. Configurable through GROQ_GUARD_MODEL.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @returns {string} The guard model ID.
+ */
+function getModeloGuard(): string {
+  return process.env.GROQ_GUARD_MODEL || 'meta-llama/llama-prompt-guard-2-86m';
+}
+
+/**
+ * Scores how likely a user message is a prompt-injection or jailbreak attempt using
+ * Llama Prompt Guard 2. Fails open: any error (missing key, rate limit, retired model)
+ * returns null so the chat keeps working without the guard.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} texto - The raw user message.
+ * @returns {Promise<number | null>} Attack probability in [0, 1], or null if unavailable
+ *   or disabled with DISABLE_PROMPT_GUARD.
+ */
+export async function evaluarPromptInjection(texto: string): Promise<number | null> {
+  const client = getClient();
+  if (!client || process.env.DISABLE_PROMPT_GUARD) return null;
+
+  try {
+    const r = await client.chat.completions.create({
+      model: getModeloGuard(),
+      // The classifier has a 512-token window; longer messages are scored on their start.
+      messages: [{ role: 'user', content: texto.slice(0, 2000) }],
+    });
+    const score = Number.parseFloat(r.choices[0]?.message?.content ?? '');
+    return Number.isFinite(score) ? score : null;
+  } catch (e: unknown) {
+    console.warn('[guard] Prompt Guard unavailable:', e instanceof Error ? e.message : e);
+    return null;
   }
 }
 
