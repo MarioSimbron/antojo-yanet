@@ -38,7 +38,7 @@
   <text x="565" y="300" text-anchor="middle" font-size="12" fill="#4A4A4A">el RAG busca 3 fragmentos</text>
 
   <!-- Anotaciones -->
-  <path d="M200,186 C250,78 455,78 512,140" fill="none" stroke="#3B6FB6" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#flecha)"/>
+  <path d="M200,186 C250,78 440,78 498,132" fill="none" stroke="#3B6FB6" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#flecha)"/>
   <text x="357" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#3B6FB6">+25 pts al mejorar el RAG</text>
   <text x="662" y="152" font-size="14" font-weight="700" fill="#C0562F">+7 pts con LoRA</text>
 </svg>
