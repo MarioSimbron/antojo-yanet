@@ -31,7 +31,58 @@ import {
   UMBRAL_INYECCION,
   filtrarFugaDePrompt,
   RESPUESTA_PROMPT_PROTEGIDO,
+  avisoListaLarga,
+  describirAgregados,
 } from '../../src/services/asistente.service';
+
+// ── describirAgregados ────────────────────────────────────────────────────────
+
+describe('describirAgregados — depósito solo para encargos', () => {
+  const trenza = {
+    productoId: 1, nombre: 'Trenza de queso y canela', precio: 35, cantidad: 1, esEncargo: false, imagenUrl: null,
+  };
+  const pastel = {
+    productoId: 2, nombre: 'Pastel tres leches (completo)', precio: 420, cantidad: 1, esEncargo: true, imagenUrl: null,
+  };
+
+  /**
+   * Regression: after adding a stock "Trenza de queso y canela", DulceBot told the
+   * customer to pay a 50 % deposit, which only applies to encargos.
+   */
+  it('marca los productos de inventario sin depósito y prohíbe mencionarlo', () => {
+    const texto = describirAgregados([trenza]).join('\n');
+    expect(texto).toContain('[inventario: se paga completo al confirmar, sin depósito]');
+    expect(texto).toContain('NO menciones depósito ni anticipo');
+  });
+
+  it('marca los encargos con depósito del 50 % y no agrega la prohibición', () => {
+    const texto = describirAgregados([trenza, pastel]).join('\n');
+    expect(texto).toContain('Pastel tres leches (completo) ($420.00 c/u) [encargo: requiere depósito del 50%]');
+    expect(texto).not.toContain('NO menciones depósito');
+  });
+
+  it('no describe nada si no se agregó ningún producto', () => {
+    expect(describirAgregados([])).toEqual([]);
+  });
+});
+
+// ── avisoListaLarga ───────────────────────────────────────────────────────────
+
+describe('avisoListaLarga — máximo 6 productos por respuesta', () => {
+  const menu = (n: number) =>
+    Array.from({ length: n }, (_, i) => `### Pan ${i + 1}\n- **Precio:** $10 MXN`).join('\n\n');
+
+  /** Regression: "¿Vendes pan?" made the model enumerate all 32 breads inline. */
+  it('agrega un recordatorio cuando el resultado trae más de 6 productos', () => {
+    const texto = avisoListaLarga(menu(32));
+    expect(texto).toContain('este resultado trae 32 productos');
+    expect(texto).toContain('Nombra como máximo 6');
+  });
+
+  it('deja intacto un resultado corto', () => {
+    expect(avisoListaLarga(menu(6))).toBe(menu(6));
+  });
+});
 
 // ── filtrarFugaDePrompt ───────────────────────────────────────────────────────
 

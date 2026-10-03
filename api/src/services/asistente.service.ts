@@ -116,6 +116,54 @@ function limpiarMarkdown(texto: string): string {
     .replace(/\p{Extended_Pictographic}/gu, '');
 }
 
+/**
+ * Most products DulceBot should name in one reply (REGLA #5).
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const MAX_PRODUCTOS_RESPUESTA = 6;
+
+/**
+ * Appends a reminder to a buscar_en_menu result that holds more products than one reply
+ * should name. The menu chunks are whole categories, and "¿Vendes pan?" made the model
+ * enumerate all 32 breads inline, slipping past REGLA #5's list limit.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} resultado - Menu chunks returned by the search (one "### " per product).
+ * @returns {string} The result, plus the reminder when it lists too many products.
+ */
+export function avisoListaLarga(resultado: string): string {
+  const total = (resultado.match(/^### /gm) ?? []).length;
+  if (total <= MAX_PRODUCTOS_RESPUESTA) return resultado;
+  return (
+    `${resultado}\n\nNOTA PARA TI: este resultado trae ${total} productos. Nombra como máximo ` +
+    `${MAX_PRODUCTOS_RESPUESTA} (variados y representativos) y dile al cliente que el menú completo ` +
+    'se está abriendo en la página.'
+  );
+}
+
+/**
+ * Describes what agregar_al_carrito added, labelling every line as a stock product (paid
+ * in full, no deposit) or an encargo (50 % deposit). Only encargos used to be marked, and
+ * the model told a customer who bought a stock "Trenza de queso y canela" to pay a 50 %
+ * deposit.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {ItemCarritoChat[]} agregados - Products added to the cart.
+ * @returns {string[]} Result lines for the model (empty when nothing was added).
+ */
+export function describirAgregados(agregados: ItemCarritoChat[]): string[] {
+  if (agregados.length === 0) return [];
+  const lineas = [
+    'Agregado al carrito (el cliente debe confirmar en el checkout):',
+    ...agregados.map((i) =>
+      `- ${i.cantidad} x ${i.nombre} ($${i.precio.toFixed(2)} c/u) ` +
+      (i.esEncargo ? '[encargo: requiere depósito del 50%]' : '[inventario: se paga completo al confirmar, sin depósito]'),
+    ),
+  ];
+  if (!agregados.some((i) => i.esEncargo)) {
+    lineas.push('IMPORTANTE: ninguno de estos productos es encargo. NO menciones depósito ni anticipo.');
+  }
+  return lineas;
+}
+
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
 const T_BUSCAR_MENU: GroqTool = {
@@ -477,12 +525,7 @@ async function ejecutarTool(
       }
 
       const lineas: string[] = [];
-      if (agregados.length > 0) {
-        lineas.push(
-          'Agregado al carrito (el cliente debe confirmar en el checkout):',
-          ...agregados.map((i) => `- ${i.cantidad} x ${i.nombre} ($${i.precio.toFixed(2)} c/u)${i.esEncargo ? ' [encargo]' : ''}`),
-        );
-      }
+      lineas.push(...describirAgregados(agregados));
       if (problemas.length > 0) lineas.push('NO se agregó:', ...problemas.map((p) => `- ${p}`));
       if (lineas.length === 0) lineas.push('No se indicó ningún producto; no se agregó nada.');
 
@@ -591,7 +634,7 @@ async function ejecutarTool(
 
     case 'buscar_en_menu': {
       const chunks = await buscarChunksRelevantes(String(args.query ?? ''), 5, ['menu.md']);
-      const resultado = chunks.map((c) => c.texto).join('\n\n');
+      const resultado = avisoListaLarga(chunks.map((c) => c.texto).join('\n\n'));
       return {
         resultado: resultado || 'No encontré información sobre eso en el menú.',
         accion: 'VER_MENU',
@@ -896,11 +939,13 @@ Si el cliente pide un encargo y ya mencionó el producto, llama a iniciar_encarg
 Convierte fechas relativas ("el sábado", "mañana") a YYYY-MM-DD usando la fecha de hoy.
 Cuando uses iniciar_encargo: NUNCA digas que el encargo quedó "registrado" o "confirmado".
 Dile al cliente que le abriste el checkout con sus datos prellenados y que el encargo queda registrado cuando confirme y pague el depósito del 50%.
+El depósito es SOLO para encargos. Los productos de inventario (pan del día, bebidas, galletas) se pagan completos al confirmar en el checkout; nunca les menciones depósito ni anticipo.
 Si la herramienta dice que la fecha no se puede usar, explica por qué (mínimo 48 horas, máximo 30 días).
 
 == REGLA #5 — FORMATO ==
 Solo texto plano. Sin Markdown, sin negritas, sin tablas, sin emojis.
 Para listas usa guiones simples (- item). Máximo 6 elementos por lista antes de ofrecer ver más.
+El máximo de 6 también aplica a productos enumerados dentro de una oración: nombra hasta 6 y ofrece ver el menú completo.
 Respuestas cortas y directas: 1-2 oraciones para saludos y preguntas simples.
 
 == REGLA #6 — LÍMITES DEL ROL ==
