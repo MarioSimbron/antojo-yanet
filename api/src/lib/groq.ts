@@ -17,13 +17,24 @@ let groqClient: Groq | null = null;
 
 /**
  * Groq model used by the assistant. Configurable through GROQ_MODEL because Groq
- * retires models over time; defaults to a tool-calling capable model.
+ * retires models over time; defaults to gpt-oss-20b, the tool-calling model used in
+ * production and in the course pipeline (the Groq free tier no longer offers Llama
+ * chat models).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {string} The model ID.
  */
 function getModelo(): string {
-  return process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+  return process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
 }
+
+/**
+ * Sampling temperature for every call. Groq defaults to 1.0, which made tool routing
+ * non-deterministic: the routing evaluation showed the same message ("Quiero 2 conchas
+ * de vainilla") going to agregar_al_carrito on one run and buscar_en_menu on the next.
+ * A low value keeps tool selection stable while leaving some variety in the wording.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const TEMPERATURA = 0.2;
 
 /**
  * Lazily creates the Groq client singleton.
@@ -71,6 +82,7 @@ export async function llamarGroq(
       messages,
       tools,
       tool_choice: tools ? 'auto' : undefined,
+      temperature: TEMPERATURA,
       max_tokens: 1024,
     });
   } catch (e: unknown) {

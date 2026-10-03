@@ -24,7 +24,27 @@ import {
   tokenizar,
   buildRegla2,
   obtenerToolsPorRol,
+  fechaDeHoy,
 } from '../../src/services/asistente.service';
+
+// ── fechaDeHoy ────────────────────────────────────────────────────────────────
+
+describe('fechaDeHoy — fecha de referencia para resolver fechas relativas', () => {
+  /**
+   * The routing evaluation showed the model asking for an "exact date in YYYY-MM-DD"
+   * when the customer said "para el sábado", because the prompt had no current date.
+   */
+  it('incluye el día de la semana y la fecha ISO', () => {
+    const texto = fechaDeHoy(new Date('2026-10-02T18:00:00Z'));
+    expect(texto).toContain('viernes');
+    expect(texto).toContain('(2026-10-02)');
+  });
+
+  it('usa la zona horaria de la panadería (Ciudad de México), no UTC', () => {
+    // 03:00 UTC del sábado 3 = 21:00 del viernes 2 en Ciudad de México
+    expect(fechaDeHoy(new Date('2026-10-03T03:00:00Z'))).toContain('(2026-10-02)');
+  });
+});
 
 // ── tokenizar ─────────────────────────────────────────────────────────────────
 

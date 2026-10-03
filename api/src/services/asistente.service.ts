@@ -7,7 +7,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { llamarGroq, esError, GroqTool } from '../lib/groq.js';
-import { buscarChunksRelevantes } from '../lib/rag.js';
+import { buscarChunksRelevantes, type Chunk } from '../lib/rag.js';
 import { agregarMensaje, obtenerHistorial } from '../lib/chat-history.js';
 import { verificarOwnership } from './pedido.service.js';
 
@@ -681,37 +681,43 @@ async function ejecutarTool(
 // ── Main chat processor ───────────────────────────────────────────────────────
 
 /**
- * Processes one chat message: retrieves relevant RAG chunks, builds the role-specific
- * system prompt with session history, calls Groq with the appropriate tool set,
- * executes all requested tools and makes a second call for the final answer.
+ * Returns today's date in the bakery's time zone, both human-readable and ISO, so the
+ * model can resolve relative dates ("para el sábado") into the YYYY-MM-DD format that
+ * iniciar_encargo expects instead of asking the customer for an exact date.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- * @param {string} mensaje - The user's message.
- * @param {string} sessionId - Chat session identifier used to keep history.
- * @param {{ usuarioId: number; rol: string }} [auth] - Authenticated user, if any.
- * @param {string} [guestToken] - Guest token of the current visitor, if any.
- * @returns {Promise<{ respuesta: string; accion: string; datosEncargo?: Record<string, unknown>; itemsCarrito?: ItemCarritoChat[]; pedidoId?: number; fuentesUsadas?: string[] }>}
+ * @param {Date} [ahora=new Date()] - Reference instant (injectable for tests).
+ * @returns {string} e.g. "viernes, 2 de octubre de 2026 (2026-10-02)".
  */
-export async function procesarMensajeChat(
-  mensaje: string,
-  sessionId: string,
+export function fechaDeHoy(ahora: Date = new Date()): string {
+  const zona = 'America/Mexico_City';
+  const legible = new Intl.DateTimeFormat('es-MX', {
+    timeZone: zona, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  }).format(ahora);
+  const iso = new Intl.DateTimeFormat('en-CA', { timeZone: zona }).format(ahora);
+  return `${legible} (${iso})`;
+}
+
+/**
+ * Builds DulceBot's full system prompt: persona, role context, the six rules and the
+ * retrieved RAG context. Shared by the chat processor and the routing evaluation so
+ * both exercise exactly the same prompt.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {Chunk[]} chunks - Knowledge-base chunks retrieved for the current message.
+ * @param {GroqTool[]} toolsActivos - Tool set available to the current role.
+ * @param {{ usuarioId: number; rol: string }} [auth] - Authenticated user, if any.
+ * @returns {string} The complete system prompt.
+ */
+export function construirSystemPrompt(
+  chunks: Chunk[],
+  toolsActivos: GroqTool[],
   auth?: { usuarioId: number; rol: string },
-  guestToken?: string,
-): Promise<{
-  respuesta: string;
-  accion: string;
-  datosEncargo?: Record<string, unknown>;
-  itemsCarrito?: ItemCarritoChat[];
-  pedidoId?: number;
-  fuentesUsadas?: string[];
-}> {
-  const toolsActivos = obtenerToolsPorRol(auth?.rol);
-  const chunks = await buscarChunksRelevantes(mensaje, 5);
-  const fuentesUsadas: string[] = [];
+): string {
   const contextoRAG = chunks.map((c) => c.texto).join('\n\n');
   const contextoRol = buildContextoRol(auth);
 
-  const systemPrompt = `Eres DulceBot, la asistente virtual de la panadería "Antojo de Yanet".
+  return `Eres DulceBot, la asistente virtual de la panadería "Antojo de Yanet".
 Personalidad: amigable, cálida, directa. Hablas como persona real en un chat, sin ser robótica ni usar lenguaje corporativo.
+Fecha de hoy: ${fechaDeHoy()}.
 ${contextoRol}
 == REGLA #1 — NUNCA INVENTES DATOS ESPECÍFICOS ==
 NUNCA inventes precios, cantidades de stock o características de un producto que no aparezcan en el contexto RAG o en la respuesta de una herramienta.
@@ -748,6 +754,8 @@ Ejemplo de respuesta correcta:
   ¿Cuál quieres?"
 
 == REGLA #4 — ENCARGOS ==
+Si el cliente pide un encargo y ya mencionó el producto, llama a iniciar_encargo de inmediato con los datos que dio; no pidas antes la fecha ni los detalles.
+Convierte fechas relativas ("el sábado", "mañana") a YYYY-MM-DD usando la fecha de hoy.
 Cuando uses iniciar_encargo: NUNCA digas que el encargo quedó "registrado" o "confirmado".
 Dile al cliente: "Tu solicitud fue recibida. El equipo te contactará para confirmar disponibilidad y precio."
 
@@ -764,6 +772,65 @@ Eres una asistente de panadería, no una persona con vida propia.
 
 == CONTEXTO DEL MENÚ (RAG — referencia rápida, no lista completa) ==
 ${contextoRAG || 'Sin contexto RAG disponible. Usa buscar_en_menu para consultar el menú real.'}`;
+}
+
+/**
+ * Runs only the routing step of the pipeline: retrieves RAG context, builds the
+ * system prompt and asks Groq which tool to call, without executing it. Used by the
+ * routing evaluation (message → expected tool), the equivalent of the classification
+ * step evaluated with a confusion matrix in the course pipeline.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} mensaje - The user's message (evaluated without session history).
+ * @param {{ usuarioId: number; rol: string }} [auth] - Authenticated user, if any.
+ * @returns {Promise<string>} The first tool name the model chose, or 'NINGUNA' when it
+ *   answered directly.
+ * @throws {Error} When the Groq call fails (e.g. rate limit), so callers can retry.
+ */
+export async function decidirHerramienta(
+  mensaje: string,
+  auth?: { usuarioId: number; rol: string },
+): Promise<string> {
+  const toolsActivos = obtenerToolsPorRol(auth?.rol);
+  const chunks = await buscarChunksRelevantes(mensaje, 5);
+  const resultado = await llamarGroq(
+    [
+      { role: 'system', content: construirSystemPrompt(chunks, toolsActivos, auth) },
+      { role: 'user', content: mensaje },
+    ],
+    toolsActivos,
+  );
+  if (esError(resultado)) throw new Error(resultado.message);
+  return resultado.choices[0].message.tool_calls?.[0]?.function.name ?? 'NINGUNA';
+}
+
+/**
+ * Processes one chat message: retrieves relevant RAG chunks, builds the role-specific
+ * system prompt with session history, calls Groq with the appropriate tool set,
+ * executes all requested tools and makes a second call for the final answer.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ * @param {string} mensaje - The user's message.
+ * @param {string} sessionId - Chat session identifier used to keep history.
+ * @param {{ usuarioId: number; rol: string }} [auth] - Authenticated user, if any.
+ * @param {string} [guestToken] - Guest token of the current visitor, if any.
+ * @returns {Promise<{ respuesta: string; accion: string; datosEncargo?: Record<string, unknown>; itemsCarrito?: ItemCarritoChat[]; pedidoId?: number; fuentesUsadas?: string[] }>}
+ */
+export async function procesarMensajeChat(
+  mensaje: string,
+  sessionId: string,
+  auth?: { usuarioId: number; rol: string },
+  guestToken?: string,
+): Promise<{
+  respuesta: string;
+  accion: string;
+  datosEncargo?: Record<string, unknown>;
+  itemsCarrito?: ItemCarritoChat[];
+  pedidoId?: number;
+  fuentesUsadas?: string[];
+}> {
+  const toolsActivos = obtenerToolsPorRol(auth?.rol);
+  const chunks = await buscarChunksRelevantes(mensaje, 5);
+  const fuentesUsadas: string[] = [];
+  const systemPrompt = construirSystemPrompt(chunks, toolsActivos, auth);
 
   const historial = obtenerHistorial(sessionId);
   const messages: import('../lib/groq.js').GroqMessage[] = [
