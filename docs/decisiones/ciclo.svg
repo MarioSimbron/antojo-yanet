@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 230" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Ciclo de medir, encontrar la falla y corregir</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6B5E52"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="758" height="228" rx="14" fill="#FFFFFF" stroke="#E3DCD2"/>
+
+  <rect x="30" y="30" width="180" height="64" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="120" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#2B2B2B">1. Medir</text>
+
+  <rect x="290" y="30" width="180" height="64" rx="10" fill="#FCE8D5" stroke="#C0562F"/>
+  <text x="380" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#2B2B2B">2. Encontrar la falla</text>
+
+  <rect x="550" y="30" width="180" height="64" rx="10" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="640" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#2B2B2B">3. Corregir</text>
+
+  <line x1="210" y1="62" x2="288" y2="62" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="470" y1="62" x2="548" y2="62" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <polyline points="640,94 640,140 120,140 120,96" fill="none" stroke="#6B5E52" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#flecha)"/>
+  <text x="380" y="132" text-anchor="middle" font-size="13" fill="#6B5E52">volver a medir</text>
+
+  <text x="380" y="182" text-anchor="middle" font-size="14" fill="#2B2B2B">Ejemplo: el eval de herramientas dio 81 %, encontró 3 fallas,</text>
+  <text x="380" y="204" text-anchor="middle" font-size="14" fill="#2B2B2B">las corregimos y al volver a medir dio <tspan font-weight="700">95 %</tspan>.</text>
+</svg>

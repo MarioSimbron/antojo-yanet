@@ -18,20 +18,7 @@ Una panadería recibe siempre las mismas preguntas: horarios, precios, si hay co
 
 ## 2. Cómo responde DulceBot a un mensaje
 
-```mermaid
-flowchart TD
-    A["Cliente escribe un mensaje"] --> B["Llama Prompt Guard 2<br/>¿intenta manipular al bot?"]
-    A --> C["RAG<br/>busca en los documentos del negocio"]
-    B --> D["Se arma el prompt<br/>reglas + rol + contexto"]
-    C --> D
-    D --> E{"gpt-oss-20b<br/>¿necesita una herramienta?"}
-    E -- "No" --> H["Redacta la respuesta"]
-    E -- "Sí" --> F["El servidor ejecuta la herramienta<br/>consulta la base de datos o agrega al carrito"]
-    F --> G["gpt-oss-20b redacta con el resultado"]
-    G --> H
-    H --> I["Filtro de salida<br/>¿se le escapó información interna?"]
-    I --> J["Respuesta al cliente"]
-```
+![Flujo de un mensaje: 1. el cliente escribe; 2a. Llama Prompt Guard revisa si intenta manipular y 2b. el RAG busca en los documentos; 3. se arma el prompt; 4. gpt-oss-20b entiende y decide; 5. si necesita datos o una acción, ejecuta una herramienta; 6. filtro de salida; 7. respuesta con datos reales](docs/decisiones/flujo.svg)
 
 Lo importante: **el modelo nunca es la fuente de los datos.** Los datos vienen del RAG o de la base de datos.
 
@@ -41,14 +28,7 @@ Lo importante: **el modelo nunca es la fuente de los datos.** Los datos vienen d
 
 Esta fue la decisión central. Para cada tipo de información nos preguntamos lo mismo:
 
-```mermaid
-flowchart LR
-    Q["¿Qué tipo de dato es?"] --> P{"¿Cambia todos los días?<br/>precios, stock, pedidos"}
-    P -- "Sí" --> T["Herramienta que consulta<br/>la base de datos en vivo"]
-    P -- "No" --> R{"¿Es información del negocio?<br/>horarios, políticas, FAQ"}
-    R -- "Sí" --> G["RAG sobre los documentos"]
-    R -- "No, es la forma de hablar" --> S["Prompt con reglas<br/>(LoRA lo intentó, ver decisión 8)"]
-```
+![Árbol de decisión: si el dato cambia todos los días, sale de una herramienta que consulta la base de datos; si no, y el negocio lo tiene escrito, sale del RAG; si es la forma de hablar, lo definen las reglas del prompt](docs/decisiones/datos.svg)
 
 ---
 
@@ -110,12 +90,7 @@ Todas siguen el mismo formato: qué problema había, qué vimos, qué decidimos 
 | **Decisión** | 21 mensajes con su herramienta esperada, medidos con % de aciertos y matriz de confusión. |
 | **Comprobación** | La primera medición dio **81 %** y reveló 3 fallas: respuestas al azar (temperatura alta), el bot no sabía la fecha de hoy y no sabía cuándo iniciar un encargo. Tras corregirlas: **95 %**. |
 
-```mermaid
-flowchart LR
-    M["Medir"] --> F["Encontrar la falla"]
-    F --> C["Corregir"]
-    C --> M
-```
+![Ciclo: medir, encontrar la falla, corregir y volver a medir. Ejemplo: el eval de herramientas pasó de 81 % a 95 %](docs/decisiones/ciclo.svg)
 
 Este ciclo se repitió en casi todas las decisiones de este documento.
 
@@ -137,14 +112,7 @@ Este ciclo se repitió en casi todas las decisiones de este documento.
 | **Decisión** | Si Prompt Guard sospecha, **le avisa al modelo** en vez de bloquear al cliente. Como no detecta todo, agregamos más capas (diagrama de abajo). |
 | **Comprobación** | El ataque de los pasteles gratis se rechaza, el cliente que cancela su pedido recibe ayuda normal, y el intento de sacar el prompt lo frena la regla de confidencialidad o, si el modelo falla, el filtro de salida. |
 
-```mermaid
-flowchart LR
-    A["Mensaje"] --> B["1. Prompt Guard<br/>avisa si sospecha"]
-    B --> C["2. Reglas del prompt<br/>no revelar, no cambiar de rol"]
-    C --> D["3. Filtro de salida<br/>bloquea fugas del prompt"]
-    D --> E["4. Permisos del servidor<br/>herramientas según el rol"]
-    E --> F["Respuesta segura"]
-```
+![Cuatro capas de seguridad en orden: Llama Prompt Guard, reglas del prompt, filtro de salida y permisos por rol, que es la barrera real](docs/decisiones/seguridad.svg)
 
 La capa 4 es la más fuerte: aunque engañen al modelo, **no puede usar herramientas que su rol no tiene**.
 
@@ -169,12 +137,7 @@ Dos hallazgos que decidieron todo:
 1. **Mejorar el RAG valió más que el fine-tuning.** En la primera corrida el experimento buscaba mal el contexto. Al corregir solo eso, el modelo **sin ajustar** pasó de 25 % a 50 % de datos correctos. LoRA sumó apenas 7 puntos más.
 2. **Fluidez no es exactitud.** El modelo ajustado dijo "envío gratis" (cuesta $30) y dio un horario falso para el domingo, con la voz perfecta de DulceBot. Un error que suena convincente es peor que uno obvio.
 
-```mermaid
-flowchart LR
-    R1["Corrida 1<br/>datos correctos: 25 % → 43 %"] --> E["Error encontrado:<br/>el experimento buscaba<br/>solo 1 fragmento"]
-    E --> R2["Corrida 2<br/>datos correctos: 50 % → 57 %"]
-    R2 --> C["Conclusión: LoRA enseña la forma,<br/>el RAG aporta los hechos"]
-```
+![Gráfica de barras de datos correctos: corrida 1, sin ajustar 25 % y con LoRA 43 %; corrida 2, sin ajustar 50 % y con LoRA 57 %. Mejorar el RAG sumó 25 puntos y LoRA 7](docs/decisiones/lora.svg)
 
 ### Decisión 9: todo en planes gratuitos, con sus límites a la vista
 

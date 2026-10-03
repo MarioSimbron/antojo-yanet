@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 330" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Datos correctos: mejorar el RAG aportó más que LoRA</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3B6FB6"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="818" height="328" rx="14" fill="#FFFFFF" stroke="#E3DCD2"/>
+
+  <text x="30" y="30" font-size="15" font-weight="700" fill="#2B2B2B">Datos correctos mencionados (métrica objetiva, 14 preguntas no vistas)</text>
+  <rect x="560" y="42" width="14" height="14" rx="3" fill="#B0A89F"/>
+  <text x="582" y="54" font-size="13" fill="#4A4A4A">Sin ajustar</text>
+  <rect x="670" y="42" width="14" height="14" rx="3" fill="#C0562F"/>
+  <text x="692" y="54" font-size="13" fill="#4A4A4A">Con LoRA</text>
+
+  <!-- Ejes: 0 % en y=260, 100 % en y=60 -->
+  <line x1="80" y1="260" x2="720" y2="260" stroke="#8A7A6D"/>
+  <line x1="80" y1="160" x2="720" y2="160" stroke="#EDE7DE"/>
+  <line x1="80" y1="60" x2="720" y2="60" stroke="#EDE7DE"/>
+  <text x="70" y="264" text-anchor="end" font-size="12" fill="#6B5E52">0 %</text>
+  <text x="70" y="164" text-anchor="end" font-size="12" fill="#6B5E52">50 %</text>
+  <text x="70" y="64" text-anchor="end" font-size="12" fill="#6B5E52">100 %</text>
+
+  <!-- Corrida 1 -->
+  <rect x="160" y="210" width="80" height="50" fill="#B0A89F"/>
+  <text x="200" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">25 %</text>
+  <rect x="250" y="174" width="80" height="86" fill="#C0562F"/>
+  <text x="290" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">43 %</text>
+  <text x="245" y="282" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">Corrida 1</text>
+  <text x="245" y="300" text-anchor="middle" font-size="12" fill="#4A4A4A">el RAG buscaba 1 fragmento</text>
+
+  <!-- Corrida 2 -->
+  <rect x="480" y="160" width="80" height="100" fill="#B0A89F"/>
+  <text x="520" y="152" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">50 %</text>
+  <rect x="570" y="146" width="80" height="114" fill="#C0562F"/>
+  <text x="610" y="138" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">57 %</text>
+  <text x="565" y="282" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">Corrida 2</text>
+  <text x="565" y="300" text-anchor="middle" font-size="12" fill="#4A4A4A">el RAG busca 3 fragmentos</text>
+
+  <!-- Anotaciones -->
+  <path d="M200,186 C250,78 455,78 512,140" fill="none" stroke="#3B6FB6" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#flecha)"/>
+  <text x="357" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#3B6FB6">+25 pts al mejorar el RAG</text>
+  <text x="662" y="152" font-size="14" font-weight="700" fill="#C0562F">+7 pts con LoRA</text>
+</svg>

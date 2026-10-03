@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 390" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Cómo responde DulceBot a un mensaje</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6B5E52"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="958" height="388" rx="14" fill="#FFFFFF" stroke="#E3DCD2"/>
+
+  <!-- Fila 1 -->
+  <rect x="20" y="45" width="160" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="100" y="74" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">1. El cliente</text>
+  <text x="100" y="95" text-anchor="middle" font-size="13" fill="#4A4A4A">escribe un mensaje</text>
+
+  <rect x="240" y="12" width="200" height="56" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="340" y="36" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">2a. Llama Prompt Guard</text>
+  <text x="340" y="56" text-anchor="middle" font-size="13" fill="#4A4A4A">¿intenta manipular?</text>
+
+  <rect x="240" y="92" width="200" height="56" rx="10" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="340" y="116" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">2b. RAG</text>
+  <text x="340" y="136" text-anchor="middle" font-size="13" fill="#4A4A4A">busca en los documentos</text>
+
+  <rect x="500" y="45" width="200" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="600" y="74" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">3. Se arma el prompt</text>
+  <text x="600" y="95" text-anchor="middle" font-size="13" fill="#4A4A4A">reglas + rol + contexto</text>
+
+  <rect x="760" y="45" width="180" height="70" rx="10" fill="#FCE8D5" stroke="#C0562F"/>
+  <text x="850" y="74" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">4. gpt-oss-20b</text>
+  <text x="850" y="95" text-anchor="middle" font-size="13" fill="#4A4A4A">entiende y decide</text>
+
+  <line x1="180" y1="70" x2="238" y2="42" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="180" y1="90" x2="238" y2="118" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="440" y1="42" x2="498" y2="70" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="440" y1="118" x2="498" y2="90" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="700" y1="80" x2="758" y2="80" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <!-- Fila 2 (se lee de derecha a izquierda) -->
+  <rect x="740" y="215" width="200" height="70" rx="10" fill="#E7F2E4" stroke="#4E8A45" stroke-dasharray="6 4"/>
+  <text x="840" y="244" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">5. Herramienta</text>
+  <text x="840" y="265" text-anchor="middle" font-size="13" fill="#4A4A4A">base de datos o carrito</text>
+
+  <rect x="500" y="215" width="200" height="70" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="600" y="244" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">6. Filtro de salida</text>
+  <text x="600" y="265" text-anchor="middle" font-size="13" fill="#4A4A4A">¿se escapó algo interno?</text>
+
+  <rect x="240" y="215" width="200" height="70" rx="10" fill="#C0562F" stroke="#9C4324"/>
+  <text x="340" y="244" text-anchor="middle" font-size="15" font-weight="700" fill="#FFFFFF">7. Respuesta</text>
+  <text x="340" y="265" text-anchor="middle" font-size="13" fill="#FFFFFF">con datos reales</text>
+
+  <line x1="850" y1="115" x2="850" y2="213" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="862" y="170" font-size="12" fill="#6B5E52">si necesita datos</text>
+  <text x="862" y="186" font-size="12" fill="#6B5E52">o una acción</text>
+  <line x1="740" y1="250" x2="702" y2="250" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <line x1="500" y1="250" x2="442" y2="250" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <!-- Leyenda -->
+  <rect x="40" y="335" width="14" height="14" rx="3" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="62" y="347" font-size="13" fill="#4A4A4A">Seguridad</text>
+  <rect x="170" y="335" width="14" height="14" rx="3" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="192" y="347" font-size="13" fill="#4A4A4A">Datos reales (RAG y base de datos)</text>
+  <rect x="440" y="335" width="14" height="14" rx="3" fill="#FCE8D5" stroke="#C0562F"/>
+  <text x="462" y="347" font-size="13" fill="#4A4A4A">Modelo de lenguaje</text>
+  <rect x="620" y="335" width="14" height="14" rx="3" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="642" y="347" font-size="13" fill="#4A4A4A">Armado del mensaje</text>
+  <text x="40" y="372" font-size="12" fill="#6B5E52">El paso 5 (borde punteado) solo ocurre cuando la pregunta necesita datos vivos o una acción.</text>
+</svg>

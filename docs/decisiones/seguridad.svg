@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Cuatro capas de seguridad</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6B5E52"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="958" height="248" rx="14" fill="#FFFFFF" stroke="#E3DCD2"/>
+
+  <rect x="12" y="72" width="98" height="50" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="61" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">Mensaje</text>
+  <line x1="110" y1="97" x2="138" y2="97" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <rect x="140" y="40" width="175" height="114" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="227" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">1. Llama Prompt Guard</text>
+  <text x="227" y="100" text-anchor="middle" font-size="13" fill="#4A4A4A">avisa al modelo</text>
+  <text x="227" y="119" text-anchor="middle" font-size="13" fill="#4A4A4A">si sospecha</text>
+  <line x1="315" y1="97" x2="343" y2="97" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <rect x="345" y="40" width="175" height="114" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="432" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">2. Reglas del prompt</text>
+  <text x="432" y="100" text-anchor="middle" font-size="13" fill="#4A4A4A">no revelar instrucciones</text>
+  <text x="432" y="119" text-anchor="middle" font-size="13" fill="#4A4A4A">ni cambiar de rol</text>
+  <line x1="520" y1="97" x2="548" y2="97" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <rect x="550" y="40" width="175" height="114" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="637" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">3. Filtro de salida</text>
+  <text x="637" y="100" text-anchor="middle" font-size="13" fill="#4A4A4A">bloquea fugas</text>
+  <text x="637" y="119" text-anchor="middle" font-size="13" fill="#4A4A4A">del prompt</text>
+  <line x1="725" y1="97" x2="753" y2="97" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <rect x="755" y="40" width="190" height="114" rx="10" fill="#E7F2E4" stroke="#4E8A45" stroke-width="2.5"/>
+  <text x="850" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">4. Permisos por rol</text>
+  <text x="850" y="100" text-anchor="middle" font-size="13" fill="#4A4A4A">herramientas según</text>
+  <text x="850" y="119" text-anchor="middle" font-size="13" fill="#4A4A4A">el token, no el texto</text>
+  <text x="850" y="142" text-anchor="middle" font-size="12" font-weight="700" fill="#4E8A45">la barrera real</text>
+
+  <text x="480" y="196" text-anchor="middle" font-size="14" fill="#2B2B2B">Ninguna capa basta sola: Prompt Guard detectó 4 de 7 ataques y marcó a un cliente real como ataque.</text>
+  <text x="480" y="220" text-anchor="middle" font-size="14" fill="#2B2B2B">Por eso <tspan font-weight="700">avisa en vez de bloquear</tspan>, y las otras capas cubren lo que se le escapa.</text>
+</svg>

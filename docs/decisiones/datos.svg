@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 350" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>De dónde sale cada dato</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6B5E52"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="958" height="348" rx="14" fill="#FFFFFF" stroke="#E3DCD2"/>
+
+  <!-- Inicio -->
+  <rect x="20" y="130" width="170" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="105" y="160" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">¿Qué dato</text>
+  <text x="105" y="180" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">necesita?</text>
+  <line x1="190" y1="165" x2="223" y2="165" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <!-- Pregunta 1 -->
+  <polygon points="330,105 435,165 330,225 225,165" fill="#FFF8EC" stroke="#B08A4A"/>
+  <text x="330" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">¿Cambia todos</text>
+  <text x="330" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">los días?</text>
+
+  <!-- Sí: herramienta -->
+  <polyline points="330,105 330,48 478,48" fill="none" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="340" y="80" font-size="13" font-weight="700" fill="#4E8A45">Sí</text>
+  <rect x="480" y="13" width="270" height="70" rx="10" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="615" y="42" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">Herramienta → base de datos</text>
+  <text x="615" y="63" text-anchor="middle" font-size="13" fill="#4A4A4A">precios, stock, pedidos</text>
+
+  <!-- No: pregunta 2 -->
+  <line x1="435" y1="165" x2="493" y2="165" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="452" y="157" font-size="13" font-weight="700" fill="#B0442A">No</text>
+  <polygon points="600,105 705,165 600,225 495,165" fill="#FFF8EC" stroke="#B08A4A"/>
+  <text x="600" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">¿Lo tiene escrito</text>
+  <text x="600" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="#2B2B2B">el negocio?</text>
+
+  <!-- Sí: RAG -->
+  <line x1="705" y1="165" x2="758" y2="165" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="720" y="157" font-size="13" font-weight="700" fill="#4E8A45">Sí</text>
+  <rect x="760" y="130" width="180" height="70" rx="10" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="850" y="159" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">RAG</text>
+  <text x="850" y="180" text-anchor="middle" font-size="13" fill="#4A4A4A">horarios, políticas, FAQ</text>
+
+  <!-- No: prompt -->
+  <line x1="600" y1="225" x2="600" y2="263" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="612" y="250" font-size="13" font-weight="700" fill="#B0442A">No, es cómo hablar</text>
+  <rect x="490" y="265" width="220" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="600" y="294" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">Reglas del prompt</text>
+  <text x="600" y="315" text-anchor="middle" font-size="13" fill="#4A4A4A">tono, formato, límites</text>
+
+  <text x="40" y="300" font-size="12" fill="#6B5E52">Los datos nunca salen</text>
+  <text x="40" y="317" font-size="12" fill="#6B5E52">de la "memoria" del modelo.</text>
+</svg>
