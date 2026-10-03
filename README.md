@@ -4,6 +4,8 @@ Plataforma de pedidos y encargos para una panadería artesanal mexicana. Incluye
 
 **En línea:** [antojo-yanet.pages.dev](https://antojo-yanet.pages.dev/) · API: `https://antojo-yanet.onrender.com/graphql`
 
+**¿Por qué está hecho así?** Lee [DECISIONES.md](DECISIONES.md): cada decisión explicada paso a paso, con diagramas.
+
 > La API corre en el plan gratuito de Render y se duerme tras 15 minutos sin tráfico. La primera petición puede tardar ~50 segundos.
 
 ---
