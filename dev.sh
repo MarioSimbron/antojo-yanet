@@ -26,6 +26,14 @@ for cmd in docker; do
   fi
 done
 
+# ── Variables de entorno ───────────────────────────────────────────────────────
+# .env no se versiona (contiene secretos). En un clon nuevo se crea a partir de
+# .env.example, que trae valores funcionales para desarrollo salvo la key de Groq.
+if [[ ! -f "$ROOT_DIR/.env" ]]; then
+  cp "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
+  log "Se creó .env desde .env.example. Pon tu GROQ_API_KEY en .env para activar DulceBot."
+fi
+
 # ── Construir y levantar todo en Docker ────────────────────────────────────────
 # --build  → reconstruye la imagen si el Dockerfile o package.json cambiaron
 # -d       → modo detached: el script termina, los contenedores siguen corriendo

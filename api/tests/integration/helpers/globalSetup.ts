@@ -15,10 +15,10 @@ const apiRoot = path.resolve(__dirname, '../../..');
  * Derives the integration-test database URL by replacing the DB name in
  * DATABASE_URL with `antojo_test`. Falls back to a local default.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
- * @returns {string} MySQL connection URL pointing to the test database.
+ * @returns {string} PostgreSQL connection URL pointing to the test database.
  */
 export function getTestDbUrl(): string {
-  const base = process.env.DATABASE_URL ?? 'mysql://root:@localhost:3306/antojo';
+  const base = process.env.DATABASE_URL ?? 'postgresql://postgres:secret@localhost:5432/antojo';
   return base.replace(/\/([^/?]+)(\?|$)/, '/antojo_test$2');
 }
 

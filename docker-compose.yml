@@ -1,21 +1,22 @@
 services:
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: antojo
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
       - ./api/prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d antojo"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 10s
 
   adminer:
     image: adminer:latest
@@ -23,7 +24,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
 
   api:
@@ -33,19 +34,19 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/antojo
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-secret}@postgres:5432/antojo
     ports:
       - "${PORT:-4000}:4000"
     volumes:
       - ./api:/app
       - /app/node_modules
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
-    # Run pending migrations before starting the dev server so the schema is
-    # always in sync with the code. migrate deploy is idempotent — safe to run
-    # on every restart.
-    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx scripts/generateMenu.ts && npm run dev"
+    # Sync the schema (same as production, which has no migration history since the
+    # move to PostgreSQL), seed with upserts and regenerate menu.md before starting
+    # the dev server. Every step is idempotent — safe to run on every restart.
+    command: sh -c "npx prisma db push --skip-generate && npx tsx prisma/seed.ts && npx tsx scripts/generateMenu.ts && npm run dev"
 
   web:
     build:
@@ -58,4 +59,4 @@ services:
       - api
 
 volumes:
-  mysql_data:
+  pg_data:

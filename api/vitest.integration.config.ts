@@ -9,7 +9,7 @@ import 'dotenv/config';
 
 /** Derives the test database URL by replacing the DB name in DATABASE_URL. */
 function getTestDbUrl(): string {
-  const base = process.env.DATABASE_URL ?? 'mysql://root:@localhost:3306/antojo';
+  const base = process.env.DATABASE_URL ?? 'postgresql://postgres:secret@localhost:5432/antojo';
   return base.replace(/\/([^/?]+)(\?|$)/, '/antojo_test$2');
 }
 

@@ -1,4 +1,3 @@
--- Crea los dos schemas necesarios para el proyecto.
--- Este script se ejecuta una sola vez al inicializar el contenedor MySQL.
-CREATE DATABASE IF NOT EXISTS `antojo` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE IF NOT EXISTS `antojo_test` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Crea la base de datos de tests de integración (la principal, antojo, la crea
+-- POSTGRES_DB). Se ejecuta una sola vez al inicializar el volumen de PostgreSQL.
+CREATE DATABASE antojo_test;
