@@ -29,6 +29,9 @@
 
   table { width: 100%; border-collapse: collapse; margin: 0.5em 0 0.9em; font-size: 9.8pt; }
   tr { break-inside: avoid; }
+  tr:first-child { break-after: avoid; }
+  .nueva-pagina { break-before: page; }
+  .sin-cortes { break-inside: avoid; }
   th { background: #F3EEE7; text-align: left; font-family: "Segoe UI", Calibri, sans-serif; font-weight: 600; }
   th, td { border: 1px solid var(--linea); padding: 5px 7px; vertical-align: top; }
   td.n, th.n { text-align: right; white-space: nowrap; }
@@ -154,7 +157,7 @@
     <li>Desplegar el sistema en un entorno público y accesible.</li>
   </ol>
   <h2>1.5 Metodología</h2>
-  <p>El proyecto se desarrolló con <strong>desarrollo guiado por especificaciones</strong> (<em>spec-driven development</em>). Primero se definieron por escrito las tecnologías, las reglas de negocio y los requisitos; después, el código se implementó con asistencia de IA y se validó contra esas especificaciones. Las mejoras siguieron un ciclo de medir, corregir y volver a medir (capítulo 4).</p>
+  <p>El proyecto se desarrolló con <strong>desarrollo guiado por especificaciones</strong> (<em>spec-driven development</em>). El autor definió por escrito la arquitectura, las tecnologías, las reglas de negocio y los requisitos, y tomó las decisiones a partir de las mediciones; la IA se usó para implementar y probar el código contra esas especificaciones. Las mejoras siguieron un ciclo de medir, corregir y volver a medir (capítulo 4).</p>
   <h2>1.6 Alcance</h2>
   <p>El proyecto cubre el asistente dentro de la tienda web (clientes, invitados y cuatro roles del personal), su base de conocimiento, sus evaluaciones y un experimento de fine-tuning en Google Colab. No incluye pasarela de pago real ni el canal de WhatsApp, que corresponde al Módulo 2 del programa.</p>
 </section>
@@ -196,7 +199,7 @@
     <tr><td>Fine-tuning</td><td>TinyLlama-1.1B + LoRA (Hugging Face) en Colab</td><td>Experimento de ajuste y evaluación; adaptador publicado en Hugging Face Hub</td></tr>
   </table>
 
-  <h2>3.2 Despliegue</h2>
+  <h2 class="nueva-pagina">3.2 Despliegue</h2>
   <table>
     <tr><th>Parte</th><th>Servicio (plan gratuito)</th><th>Nota</th></tr>
     <tr><td>Frontend</td><td>Cloudflare Pages</td><td>antojo-yanet.pages.dev</td></tr>
@@ -281,7 +284,7 @@
     <tr><td>Fine-tuning LoRA</td><td>Modelo base vs. ajustado con juez automático</td><td class="n">14</td><td>Formato 2.29 → <strong>5.00</strong>; datos correctos 50 % → 57 %</td></tr>
     <tr><td>Pruebas unitarias</td><td>Lógica del servidor y regresiones</td><td class="n">119</td><td>Todas aprobadas</td></tr>
   </table>
-  <h2>5.1 Fallas encontradas y corregidas</h2>
+  <h2 class="nueva-pagina">5.1 Fallas encontradas y corregidas</h2>
   <p>La evaluación encontró problemas que no se veían a simple vista. Todos se corrigieron y se cubrieron con pruebas:</p>
   <table>
     <tr><th>Falla observada</th><th>Causa</th><th>Corrección</th></tr>
@@ -312,7 +315,7 @@
 
   <h2>6.1 Resultados</h2>
   <p>Hubo dos corridas. En la primera, el experimento recuperaba un solo fragmento de contexto y la pregunta del domingo obtenía "Días festivos" en lugar del horario; la segunda recupera los tres fragmentos más relevantes. El juez fue <code>gpt-oss-20b</code> en la primera corrida y <code>gpt-oss-120b</code> en la segunda, porque se agotó la cuota diaria del primero; por eso las notas del juez solo se comparan dentro de cada corrida.</p>
-  <table>
+  <table class="sin-cortes">
     <tr><th>Criterio</th><th class="n">Corrida 1 base</th><th class="n">Corrida 1 LoRA</th><th class="n">Corrida 2 base</th><th class="n">Corrida 2 LoRA</th></tr>
     <tr><td>Formato (1 a 5)</td><td class="n">1.93</td><td class="n"><strong>5.00</strong></td><td class="n">2.29</td><td class="n"><strong>5.00</strong></td></tr>
     <tr><td>Tono (1 a 5)</td><td class="n">3.07</td><td class="n"><strong>4.14</strong></td><td class="n">3.07</td><td class="n"><strong>4.00</strong></td></tr>
@@ -385,7 +388,7 @@
   <table>
     <tr><th style="width:24%">Aspecto</th><th>Declaración</th></tr>
     <tr><td><strong>Herramienta</strong></td><td>Claude (Anthropic), mediante Claude Code, como asistente de programación y redacción.</td></tr>
-    <tr><td><strong>Metodología</strong></td><td>Desarrollo guiado por especificaciones (<em>spec-driven development</em>): el autor redactó las especificaciones del sistema, con las tecnologías, las reglas de negocio y los requisitos, y la herramienta implementó y probó el código conforme a ellas.</td></tr>
+    <tr><td><strong>Metodología</strong></td><td>Desarrollo guiado por especificaciones (<em>spec-driven development</em>): el autor definió en especificaciones la arquitectura, las tecnologías, las reglas de negocio y los requisitos, y tomó las decisiones a partir de las mediciones; la herramienta se usó para implementar y probar el código contra esas especificaciones.</td></tr>
     <tr><td><strong>Propósito</strong></td><td>Revisar el proyecto frente a los requisitos del hackathon; implementar mejoras (evaluaciones, Prompt Guard, flujo de encargos y correcciones); depurar fallas; preparar el notebook de fine-tuning; y redactar la documentación y este reporte.</td></tr>
     <tr><td><strong>Alcance</strong></td><td>El autor definió el proyecto, su alcance, las tecnologías y las reglas de negocio; tomó las decisiones; ejecutó el fine-tuning en Colab; validó los resultados en la aplicación y revisó todo el contenido entregado. La herramienta implementó el código y redactó la documentación a partir de esas especificaciones e instrucciones.</td></tr>
     <tr><td><strong>IA dentro del producto</strong></td><td>Los modelos que forman parte de DulceBot (<code>gpt-oss-20b</code>, Llama Prompt Guard 2, MiniLM y TinyLlama) son componentes del sistema y se describen en los capítulos 3 y 6.</td></tr>
