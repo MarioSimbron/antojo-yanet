@@ -8,6 +8,16 @@ Plataforma de pedidos y encargos para una panadería artesanal mexicana. Incluye
 
 **Reporte técnico (entregable):** [DulceBot_Reporte_Tecnico.pdf](docs/DulceBot_Reporte_Tecnico.pdf), con portada, índice, marco de referencia, decisiones, evaluación, tarjeta del modelo, referencias APA y declaración de uso de IA.
 
+**Hackathon 2 (WhatsApp):** [HACKATHON2-WHATSAPP.md](docs/HACKATHON2-WHATSAPP.md), con el recorrido del mensaje, las decisiones y las pruebas reales del canal de WhatsApp. Ver también [Canal WhatsApp (Twilio)](#canal-whatsapp-twilio).
+
+### Pruébalo en WhatsApp
+
+1. Desde tu celular abre **[wa.me/14155238886?text=join%20came-follow](https://wa.me/14155238886?text=join%20came-follow)** (o el botón "Abrir WhatsApp" al final de la [tienda](https://antojo-yanet.pages.dev/)) y envía el mensaje que aparece escrito: `join came-follow`.
+2. Espera la confirmación del Twilio Sandbox ("You are all set!").
+3. Escríbele a DulceBot, por ejemplo: "¿Qué panes tienen?", "¿Y cuál me recomiendas?", "¿Abren los domingos?" o "Quiero un pastel de tres leches para el sábado".
+
+La conexión al sandbox dura 72 horas. Si deja de responder, vuelve a enviar `join came-follow`.
+
 > La API corre en el plan gratuito de Render y se duerme tras 15 minutos sin tráfico. La primera petición puede tardar ~50 segundos.
 
 ---
@@ -152,6 +162,8 @@ antojo-yanet/
 
 La única variable que tienes que poner tú es `GROQ_API_KEY` (para DulceBot). Sin una key válida el chatbot muestra un mensaje de error controlado, pero el resto del sistema funciona normal.
 
+Las variables `TWILIO_*` son opcionales: solo activan el [canal de WhatsApp](#canal-whatsapp-twilio). Si faltan, la API arranca con un aviso y sin la ruta `/whatsapp`.
+
 El archivo `.env.example` documenta cada variable con comentarios.
 
 ---
@@ -292,6 +304,36 @@ El servidor tokeniza los nombres quitando stop-words y normalizando acentos ante
 
 ---
 
+## Canal WhatsApp (Twilio)
+
+DulceBot también atiende por WhatsApp a través del **Twilio WhatsApp Sandbox**. El mensaje llega a `POST /whatsapp/webhook` ([`api/src/routes/whatsapp.ts`](api/src/routes/whatsapp.ts)), que:
+
+1. valida la firma `X-Twilio-Signature` (responde 403 si es inválida);
+2. descarta los `MessageSid` repetidos;
+3. normaliza el número (`whatsapp:+5215598765432` → `525598765432`) y lo usa como `sessionId`, así el historial se conserva por cliente;
+4. procesa un mensaje a la vez por número;
+5. llama a `procesarMensajeChat` como cliente invitado (mismo pipeline, herramientas y defensas que el chat web);
+6. responde en el mismo webhook con TwiML `<Message>`, en partes de máximo 1600 caracteres. Si DulceBot tarda más de 12 s, responde vacío y envía la respuesta después por la API REST de Twilio.
+
+**Configurarlo en local:**
+
+1. En Twilio Console: **Messaging → Try it out → Send a WhatsApp message → Legacy WhatsApp Sandbox**. Envía `join <tu-código>` desde tu WhatsApp al número del sandbox (`+1 415 523 8886`).
+2. Agrega a `api/.env` `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` y `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886` (ver `.env.example`).
+3. Levanta la API (`cd api && npm run dev`) y expón el puerto: `ngrok http 4000`.
+4. En **Sandbox settings → When a message comes in** pega `https://<tu-url-ngrok>/whatsapp/webhook` con método **POST** y guarda.
+5. Escríbele a DulceBot desde WhatsApp.
+
+Para probar sin Twilio, define `TWILIO_SKIP_SIGNATURE=true` y simula el webhook:
+
+```bash
+curl -X POST http://localhost:4000/whatsapp/webhook \
+  -d "From=whatsapp%3A%2B5215598765432&Body=Hola&MessageSid=SM_TEST_001"
+```
+
+Las decisiones y las pruebas reales están en [HACKATHON2-WHATSAPP.md](docs/HACKATHON2-WHATSAPP.md).
+
+---
+
 ## Evaluación
 
 Siguiendo la idea de la Masterclass 3 ("misma prueba, mismos criterios"), DulceBot se evalúa en tres niveles:
@@ -399,5 +441,6 @@ npm run test          # Tests unitarios
 - Sin envío de emails ni SMS al cambiar el estatus de un pedido
 - Los cupones existen en BD pero no hay interfaz de canje para el cliente
 - El chatbot no mantiene historial entre sesiones de navegador
+- WhatsApp: el historial vive en memoria (se pierde al reiniciar), no hay carrito en ese canal y el sandbox de Twilio solo atiende a números unidos con `join` (72 horas). El respaldo REST para respuestas lentas requiere el perfil KYC aprobado en Twilio (error 20003)
 - Sin geolocalización ni asignación automática de repartidores
 - El plan gratuito de Groq limita los tokens: 8,000 por minuto (cada mensaje de DulceBot usa 3,000–5,000, así que dos mensajes muy seguidos pueden tardar unos segundos más por los reintentos) y una cuota diaria. Si se agota, DulceBot responde "En este momento no puedo responder" hasta que se reinicie
