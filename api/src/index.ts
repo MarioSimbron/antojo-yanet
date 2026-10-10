@@ -19,12 +19,14 @@ import { cargarDocumentos } from './lib/rag.js';
 import { generarMenuMd } from './lib/menu-generator.js';
 import { PrismaClient } from '@prisma/client';
 import { verificarToken } from './lib/jwt.js';
+import { twilioClient } from './lib/twilio-client.js';
+import { whatsappRouter } from './routes/whatsapp.js';
 
 const prismaGlobal = new PrismaClient();
 
 /**
  * Bootstraps the server: configures Express middleware and the /health endpoint, mounts
- * Apollo at /graphql, attaches Socket.IO, generates menu.md, loads RAG documents and
+ * the WhatsApp webhook at /whatsapp (when Twilio is configured), Apollo at /graphql, attaches Socket.IO, generates menu.md, loads RAG documents and
  * starts listening on PORT (default 4000).
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
  * @returns {Promise<void>} Resolves once the server has been started.
@@ -115,6 +117,13 @@ async function main() {
       res.status(401).json({ error: 'Token inválido' });
     }
   });
+
+  // WhatsApp channel (Twilio Sandbox): mounted only when the TWILIO_* variables are set
+  if (twilioClient) {
+    app.use('/whatsapp', whatsappRouter);
+  } else {
+    console.warn('[whatsapp] Canal desactivado: faltan TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN o TWILIO_WHATSAPP_FROM');
+  }
 
   const apolloServer = buildApolloServer();
   await apolloServer.start();
