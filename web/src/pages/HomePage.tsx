@@ -15,7 +15,15 @@ import {
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import ChatIcon from '@mui/icons-material/Chat';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import ProductCard, { type Producto } from '../components/ProductCard';
+
+/**
+ * Twilio WhatsApp Sandbox link: opens WhatsApp with the join message pre-filled so any
+ * visitor (e.g. the Hackathon reviewer) can connect to DulceBot's WhatsApp channel.
+ * @author Mario Simbron Gonzalez <simbron420@gmail.com>
+ */
+const WHATSAPP_SANDBOX_URL = 'https://wa.me/14155238886?text=join%20came-follow';
 
 /**
  * GraphQL query that loads available (non-encargo) products for the featured carousel.
@@ -189,6 +197,28 @@ export default function HomePage() {
           ¿Necesitas un encargo especial?
         </Typography>
         <Typography>Pasteles, roscas, cajitas… ¡pregúntale a DulceBot en el chat de abajo a la derecha!</Typography>
+      </Paper>
+
+      {/* ── WhatsApp channel CTA ──────────────────────────────────────────── */}
+      <Paper elevation={0} sx={{ bgcolor: 'secondary.light', p: 4, textAlign: 'center', borderRadius: 4 }}>
+        <WhatsAppIcon sx={{ fontSize: 40, color: '#25D366', mb: 1 }} />
+        <Typography variant="h6" component="h2" gutterBottom>
+          ¿Prefieres WhatsApp? Habla con DulceBot ahí
+        </Typography>
+        <Typography sx={{ mb: 2 }}>
+          Toca el botón y envía el mensaje <strong>join came-follow</strong> que aparece escrito. Cuando
+          te confirme la conexión, pregúntale lo que quieras, por ejemplo: “¿Qué panes tienen?”.
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<WhatsAppIcon />}
+          href={WHATSAPP_SANDBOX_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1EBE5A' } }}
+        >
+          Abrir WhatsApp
+        </Button>
       </Paper>
     </Stack>
   );
