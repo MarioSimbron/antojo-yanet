@@ -441,6 +441,6 @@ npm run test          # Tests unitarios
 - Sin envío de emails ni SMS al cambiar el estatus de un pedido
 - Los cupones existen en BD pero no hay interfaz de canje para el cliente
 - El chatbot no mantiene historial entre sesiones de navegador
-- WhatsApp: el historial vive en memoria (se pierde al reiniciar), no hay carrito en ese canal y el sandbox de Twilio solo atiende a números unidos con `join` (72 horas). El respaldo REST para respuestas lentas requiere el perfil KYC aprobado en Twilio (error 20003)
+- WhatsApp: el historial vive en memoria (se pierde al reiniciar), no hay carrito en ese canal y el sandbox de Twilio solo atiende a números unidos con `join` (72 horas). En producción algunas respuestas tardan hasta unos 20 s por el límite de tokens por minuto de Groq; si pasan de 12 s llegan por la API REST de Twilio, que requiere el perfil KYC aprobado (error 20003 si no lo está)
 - Sin geolocalización ni asignación automática de repartidores
 - El plan gratuito de Groq limita los tokens: 8,000 por minuto (cada mensaje de DulceBot usa 3,000–5,000, así que dos mensajes muy seguidos pueden tardar unos segundos más por los reintentos) y una cuota diaria. Si se agota, DulceBot responde "En este momento no puedo responder" hasta que se reinicie
