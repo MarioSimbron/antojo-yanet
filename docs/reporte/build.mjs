@@ -1,5 +1,5 @@
 /**
- * Builds the project report PDF: injects the repository's SVG diagrams into the HTML,
+ * Builds a project report PDF (Hackathon 1 by default, or the HTML passed as 3rd argument): injects the repository's SVG diagrams into the HTML,
  * paginates it with Paged.js inside headless Microsoft Edge, prints it to PDF and
  * saves a PNG of every page for visual review.
  * @author Mario Simbron Gonzalez <simbron420@gmail.com>
@@ -12,7 +12,9 @@ import puppeteer from 'puppeteer-core';
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const repo = process.argv[2];
 const salidaPdf = process.argv[3];
-const dirPaginas = path.join(aqui, 'paginas');
+// Optional source HTML (defaults to the Hackathon 1 report) so each report keeps its own pages folder.
+const fuente = process.argv[4] ?? 'reporte.html';
+const dirPaginas = path.join(aqui, fuente === 'reporte.html' ? 'paginas' : `paginas-${path.parse(fuente).name}`);
 
 /**
  * Replaces every <!--SVG:name--> marker with the inline SVG from docs/decisiones.
@@ -28,7 +30,7 @@ function insertarDiagramas(html) {
 const polyfill = fs.readFileSync(path.join(aqui, 'node_modules/pagedjs/dist/paged.polyfill.js'), 'utf8');
 // A replacer function, not a string: the library contains "$&" and "$`" sequences that
 // String.replace would otherwise expand and corrupt.
-const html = insertarDiagramas(fs.readFileSync(path.join(aqui, 'reporte.html'), 'utf8')).replace(
+const html = insertarDiagramas(fs.readFileSync(path.join(aqui, fuente), 'utf8')).replace(
   '</head>',
   () => `<script>window.PagedConfig = { after: () => { window.__listo = true; } };</script>\n<script>${polyfill}</script>\n</head>`,
 );
