@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Recorrido de un mensaje de WhatsApp hasta DulceBot</title>
+  <defs>
+    <marker id="flecha-wa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6B5E52"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="958" height="418" rx="14" fill="#FFFFFF" stroke="#E3DCD2"/>
+
+  <!-- Fila 1: entrada -->
+  <rect x="20" y="40" width="160" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="100" y="69" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">1. El cliente</text>
+  <text x="100" y="90" text-anchor="middle" font-size="13" fill="#4A4A4A">escribe en WhatsApp</text>
+
+  <rect x="240" y="40" width="200" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="340" y="69" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">2. Twilio Sandbox</text>
+  <text x="340" y="90" text-anchor="middle" font-size="13" fill="#4A4A4A">POST al webhook</text>
+
+  <rect x="500" y="40" width="200" height="70" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="600" y="69" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">3. Webhook (Render)</text>
+  <text x="600" y="90" text-anchor="middle" font-size="13" fill="#4A4A4A">firma válida y sin repetir</text>
+
+  <rect x="760" y="40" width="180" height="70" rx="10" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="850" y="69" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">4. Cola por número</text>
+  <text x="850" y="90" text-anchor="middle" font-size="13" fill="#4A4A4A">número = sesión</text>
+
+  <line x1="180" y1="75" x2="238" y2="75" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <line x1="440" y1="75" x2="498" y2="75" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <line x1="700" y1="75" x2="758" y2="75" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+
+  <!-- Fila 2: proceso y respuesta (se lee de derecha a izquierda) -->
+  <rect x="740" y="205" width="200" height="80" rx="10" fill="#FCE8D5" stroke="#C0562F"/>
+  <text x="840" y="234" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">5. DulceBot</text>
+  <text x="840" y="254" text-anchor="middle" font-size="13" fill="#4A4A4A">Prompt Guard + RAG +</text>
+  <text x="840" y="272" text-anchor="middle" font-size="13" fill="#4A4A4A">gpt-oss-20b + herramientas</text>
+
+  <rect x="500" y="175" width="200" height="60" rx="10" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="600" y="200" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">6a. TwiML</text>
+  <text x="600" y="220" text-anchor="middle" font-size="13" fill="#4A4A4A">en el mismo webhook</text>
+
+  <rect x="500" y="255" width="200" height="60" rx="10" fill="#E7F2E4" stroke="#4E8A45" stroke-dasharray="6 4"/>
+  <text x="600" y="280" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">6b. API REST</text>
+  <text x="600" y="300" text-anchor="middle" font-size="13" fill="#4A4A4A">respaldo si tarda</text>
+
+  <rect x="240" y="210" width="200" height="70" rx="10" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="340" y="239" text-anchor="middle" font-size="15" font-weight="700" fill="#2B2B2B">7. Twilio entrega</text>
+  <text x="340" y="260" text-anchor="middle" font-size="13" fill="#4A4A4A">mensajes ≤ 1600 car.</text>
+
+  <rect x="20" y="210" width="160" height="70" rx="10" fill="#C0562F" stroke="#9C4324"/>
+  <text x="100" y="239" text-anchor="middle" font-size="15" font-weight="700" fill="#FFFFFF">8. Respuesta</text>
+  <text x="100" y="260" text-anchor="middle" font-size="13" fill="#FFFFFF">en su WhatsApp</text>
+
+  <line x1="850" y1="110" x2="850" y2="203" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <line x1="740" y1="232" x2="702" y2="210" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <text x="721" y="206" text-anchor="middle" font-size="12" fill="#6B5E52">≤ 12 s</text>
+  <line x1="740" y1="260" x2="702" y2="282" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <text x="721" y="296" text-anchor="middle" font-size="12" fill="#6B5E52">&gt; 12 s</text>
+  <line x1="500" y1="210" x2="442" y2="235" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <line x1="500" y1="282" x2="442" y2="257" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+  <line x1="240" y1="245" x2="182" y2="245" stroke="#6B5E52" stroke-width="2" marker-end="url(#flecha-wa)"/>
+
+  <!-- Leyenda -->
+  <rect x="40" y="350" width="14" height="14" rx="3" fill="#F5F1EA" stroke="#8A7A6D"/>
+  <text x="62" y="362" font-size="13" fill="#4A4A4A">Canal (WhatsApp y Twilio)</text>
+  <rect x="250" y="350" width="14" height="14" rx="3" fill="#E6EEF9" stroke="#3B6FB6"/>
+  <text x="272" y="362" font-size="13" fill="#4A4A4A">Seguridad y orden</text>
+  <rect x="420" y="350" width="14" height="14" rx="3" fill="#FCE8D5" stroke="#C0562F"/>
+  <text x="442" y="362" font-size="13" fill="#4A4A4A">Pipeline del Hackathon 1 (sin cambios)</text>
+  <rect x="720" y="350" width="14" height="14" rx="3" fill="#E7F2E4" stroke="#4E8A45"/>
+  <text x="742" y="362" font-size="13" fill="#4A4A4A">Forma de responder</text>
+  <text x="40" y="392" font-size="12" fill="#6B5E52">El paso 6b (borde punteado) solo ocurre cuando DulceBot tarda más de 12 s; Twilio corta el webhook a los 15 s.</text>
+</svg>

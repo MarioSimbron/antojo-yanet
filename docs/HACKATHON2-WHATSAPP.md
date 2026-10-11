@@ -2,6 +2,7 @@
 
 **Reto:** "Agente de WhatsApp que resuelve un problema real".
 **Autor:** Mario Simbron Gonzalez.
+**Reporte técnico (PDF):** [DulceBot_Reporte_Hackathon2.pdf](DulceBot_Reporte_Hackathon2.pdf).
 
 ## Cómo probarlo
 
