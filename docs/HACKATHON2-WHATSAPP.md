@@ -60,8 +60,8 @@ Los pasos 5 a 11 son `procesarMensajeChat` ([`asistente.service.ts`](../api/src/
 | Decisión | Por qué |
 |---|---|
 | **Twilio en lugar de la WhatsApp Cloud API de Meta** | No hubo acceso a la API de Meta (el propio curso lo reconoció y buscó alternativas). Twilio ofrece un sandbox de WhatsApp listo para pruebas. |
-| **Respuesta TwiML síncrona en lugar de REST asíncrono** | Al pasar la cuenta de Twilio de trial a pagada, la API REST exige un perfil KYC aprobado (error **20003**). Una prueba aislada mostró que la respuesta TwiML sí se entrega sin KYC. DulceBot responde en 1–2 s, muy por debajo del límite de 15 s de Twilio. |
-| **Límite de 12 s con respaldo REST** | Si Groq tarda (por ejemplo, por reintentos por límite de tokens), el webhook responde vacío antes de que Twilio lo corte y la respuesta se envía después por REST. Este respaldo funcionará cuando se apruebe el KYC; mientras tanto, el error queda registrado con su código. |
+| **Respuesta TwiML síncrona en lugar de REST asíncrono** | Al pasar la cuenta de Twilio de trial a pagada, la API REST exige un perfil KYC aprobado (error **20003**). Una prueba aislada mostró que la respuesta TwiML sí se entrega sin KYC. En local DulceBot responde en 1–2 s, muy por debajo del límite de 15 s de Twilio; en producción la latencia varía (ver Pruebas). |
+| **Límite de 12 s con respaldo REST** | Si Groq tarda (por ejemplo, por reintentos por límite de tokens), el webhook responde vacío antes de que Twilio lo corte y la respuesta se envía después por REST. El perfil KYC de la cuenta ya está aprobado y el envío REST se verificó en producción. Si Twilio rechaza un envío, el error queda registrado con su código. |
 | **Responder al `From` original** | El número del sandbox llega como `+521…`. Se responde exactamente a ese valor, y la versión normalizada (`52…`) se usa solo como `sessionId`. |
 | **Cola de promesas por número** (sin `async-mutex`) | Evita que dos mensajes seguidos del mismo cliente mezclen su historial. Son 10 líneas y no agregan dependencias. |
 | **Canal opcional** | Si faltan las variables `TWILIO_*`, la API arranca con un aviso y sin la ruta `/whatsapp`. Así Render, Docker y los tests siguen funcionando. |
@@ -84,9 +84,20 @@ Los pasos 5 a 11 son `procesarMensajeChat` ([`asistente.service.ts`](../api/src/
 
 En todos los casos el `sessionId` fue `525598765432` (normalizado desde `whatsapp:+5215598765432`), la firma de Twilio fue válida y una petición sin firma recibió 403.
 
+**Prueba en producción** (10–11 oct 2026, WhatsApp → Twilio Sandbox → Render):
+
+| Prueba | Resultado |
+|---|---|
+| `POST /whatsapp/webhook` sin firma | 403: canal montado y firma activa |
+| "¿Vendes pan?" desde WhatsApp | Respuesta por TwiML en unos 3 s |
+| "¿Vendes pan?" con Groq lento (antes del KYC) | `DulceBot tardó más de 12000 ms` → respaldo REST → error 20003. Este caso motivó aprobar el perfil KYC |
+| Envío REST después del KYC | Mensaje `delivered`, sin error |
+
+**Latencia en producción:** varía entre unos 3 y 20 s. Cada pregunta que usa una herramienta hace dos llamadas a Groq, y el plan gratuito limita a 8,000 tokens por minuto (`openai/gpt-oss-20b` y `gpt-oss-120b` tienen el mismo límite; el plan Developer no estaba disponible). Producción usa RAG por palabras clave (`DISABLE_EMBEDDINGS=true` por la RAM de Render), que agrega más contexto al prompt, así que la segunda llamada a veces espera a que se libere la cuota. Con 12 s o menos la respuesta sale por TwiML; si tarda más, llega unos segundos después por REST.
+
 ## 6. Limitaciones
 
-- **Respaldo REST pendiente de KYC:** las respuestas que tarden más de 12 s solo llegarán cuando Twilio apruebe el perfil KYC de la cuenta (error 20003).
+- **Latencia variable:** por el límite de tokens del plan gratuito de Groq, algunas respuestas tardan hasta unos 20 s en producción. Llegan por el respaldo REST, pero el cliente espera más.
 - **Sin carrito en WhatsApp:** DulceBot puede ofrecer "agregar al carrito", pero ese flujo existe solo en la tienda web. Consultas, menú, horarios y encargos sí funcionan como texto.
 - **Stock:** ante "¿hay stock de…?" el modelo a veces usa `buscar_en_menu` en lugar de `consultar_stock`, así que responde con disponibilidad pero sin cantidades.
 - **Memoria y dedup en RAM:** el historial y los `MessageSid` procesados se pierden al reiniciar la API y no tienen caducidad.
