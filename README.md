@@ -8,7 +8,7 @@ Plataforma de pedidos y encargos para una panadería artesanal mexicana. Incluye
 
 **Reporte técnico (entregable):** [DulceBot_Reporte_Tecnico.pdf](docs/DulceBot_Reporte_Tecnico.pdf), con portada, índice, marco de referencia, decisiones, evaluación, tarjeta del modelo, referencias APA y declaración de uso de IA.
 
-**Hackathon 2 (WhatsApp):** [HACKATHON2-WHATSAPP.md](docs/HACKATHON2-WHATSAPP.md), con el recorrido del mensaje, las decisiones y las pruebas reales del canal de WhatsApp. Reporte técnico formal: [DulceBot_Reporte_Hackathon2.pdf](docs/DulceBot_Reporte_Hackathon2.pdf). Ver también [Canal WhatsApp (Twilio)](#canal-whatsapp-twilio).
+**Hackathon 2 (WhatsApp):** [HACKATHON2-WHATSAPP.md](docs/HACKATHON2-WHATSAPP.md), con el recorrido del mensaje, las decisiones y las pruebas reales del canal de WhatsApp. Reporte técnico formal: [DulceBot_Reporte_Hackathon2.pdf](docs/DulceBot_Reporte_Hackathon2.pdf). Notebook de evidencia: [dulcebot_whatsapp.ipynb](https://colab.research.google.com/github/MarioSimbron/antojo-yanet/blob/main/notebooks/dulcebot_whatsapp.ipynb). Ver también [Canal WhatsApp (Twilio)](#canal-whatsapp-twilio).
 
 ### Pruébalo en WhatsApp
 
