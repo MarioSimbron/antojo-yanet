@@ -3,6 +3,7 @@
 **Reto:** "Agente de WhatsApp que resuelve un problema real".
 **Autor:** Mario Simbron Gonzalez.
 **Reporte técnico (PDF):** [DulceBot_Reporte_Hackathon2.pdf](DulceBot_Reporte_Hackathon2.pdf).
+**Notebook de evidencia (Colab):** [dulcebot_whatsapp.ipynb](https://colab.research.google.com/github/MarioSimbron/antojo-yanet/blob/main/notebooks/dulcebot_whatsapp.ipynb), que corre las pruebas del canal y conversa con DulceBot en producción.
 
 ## Cómo probarlo
 
